@@ -1,0 +1,93 @@
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+name: Release policy - test
+
+jobs:
+  test:
+    name: run tests and linters
+    uses: ./.github/workflows/reusable-test-policy-go.yml
+
+  release:
+    needs: test
+    permissions:
+      # Required to create GH releases
+      contents: write
+      # Required to push to GHCR
+      packages: write
+      # Required by cosign keyless signing
+      id-token: write
+
+    # TODO: go back to using the reusable workflow once we don't need the special tinygo build
+    #uses: kubewarden/github-actions/.github/workflows/reusable-release-policy-go.yml@v3.0.4
+    #with:
+    #  oci-target: ghcr.io/${{ github.repository_owner }}/policies/container-resources
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        uses: kubewarden/github-actions/policy-gh-action-dependencies@v3.1.12
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          # until https://github.com/actions/checkout/pull/579 is released
+          fetch-depth: 0
+      - name: Install patched tinygo
+        shell: bash
+        run: |
+          wget https://github.com/tinygo-org/tinygo/releases/download/v0.28.1/tinygo_0.28.1_amd64.deb
+          sudo dpkg -i tinygo_0.28.1_amd64.deb
+          wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-16/libclang_rt.builtins-wasm32-wasi-16.0.tar.gz
+          tar xvf libclang_rt.builtins-wasm32-wasi-16.0.tar.gz
+          sudo cp lib/wasi/libclang_rt.builtins-wasm32.a /usr/local/lib/tinygo/lib/wasi-libc/sysroot/lib/wasm32-wasi/
+          sudo cp wasi-gh-action.json /usr/local/lib/tinygo/targets/wasi.json
+      - id: calculate-version
+        if: ${{ inputs.artifacthub }}
+        # obtain latest tag. Here it must be the current release tag
+        run: echo "version=$(git describe --tags --abbrev=0 | cut -c2-)" >> $GITHUB_OUTPUT
+        shell: bash
+      - name: Check that artifacthub-pkg.yml is up-to-date
+        if: ${{ inputs.artifacthub }}
+        uses: kubewarden/github-actions/check-artifacthub@v3.1.12
+        with:
+          version: ${{ steps.calculate-version.outputs.version }}
+      - name: Build policy
+        run: |
+          tinygo build -o policy.wasm -target=wasi -no-debug .
+      - name: Generate the SBOM files
+        shell: bash
+        run: |
+          spdx-sbom-generator -f json
+
+          # SBOM files should have "sbom" in the name due the CLO monitor
+          # https://clomonitor.io/docs/topics/checks/#software-bill-of-materials-sbom
+          mv bom-go-mod.json policy-sbom.spdx.json
+      - name: Annotate Wasm module
+        shell: bash
+        run: |
+          make annotated-policy.wasm
+      - name: Sign BOM file
+        shell: bash
+        run: |
+          cosign sign-blob --yes --output-certificate policy-sbom.spdx.cert \
+            --output-signature policy-sbom.spdx.sig \
+            policy-sbom.spdx.json
+      - name: Upload policy SBOM files
+        uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392 # v4.0.0
+        with:
+          name: policy-sbom
+          path: |
+            policy-sbom.spdx.json
+            policy-sbom.spdx.cert
+            policy-sbom.spdx.sig
+      - name: Run e2e tests
+        run: |
+          make e2e-tests
+      - name: Release
+        uses: kubewarden/github-actions/policy-release@v3.1.12
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          oci-target: ghcr.io/${{ github.repository_owner }}/policies/container-resources

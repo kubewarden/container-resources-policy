@@ -1,0 +1,82 @@
+name: Tests and linters
+
+on:
+  workflow_call:
+    inputs:
+      artifacthub:
+        description: "check artifacthub-pkg.yml for submission to ArtifactHub"
+        required: false
+        type: boolean
+        default: true
+    secrets: {}
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: setup Go
+        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
+        with:
+          go-version: "stable"
+
+      - name: run Go unit tests
+        run: make test
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - name: Install dependencies
+        uses: kubewarden/github-actions/policy-gh-action-dependencies@v3.1.12
+      - name: Install patched tinygo
+        shell: bash
+        run: |
+          wget https://github.com/tinygo-org/tinygo/releases/download/v0.28.1/tinygo_0.28.1_amd64.deb
+          sudo dpkg -i tinygo_0.28.1_amd64.deb
+          wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-16/libclang_rt.builtins-wasm32-wasi-16.0.tar.gz
+          tar xvf libclang_rt.builtins-wasm32-wasi-16.0.tar.gz
+          sudo cp lib/wasi/libclang_rt.builtins-wasm32.a /usr/local/lib/tinygo/lib/wasi-libc/sysroot/lib/wasm32-wasi/
+          sudo cp wasi-gh-action.json /usr/local/lib/tinygo/targets/wasi.json
+      - name: Build Wasm module
+        shell: bash
+        run: |
+          tinygo build -o policy.wasm -target=wasi -no-debug .
+      - name: Annotate Wasm module
+        shell: bash
+        run: |
+          make annotated-policy.wasm
+      - name: Run e2e tests
+        run: make e2e-tests
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
+        with:
+          go-version: "stable"
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@3a919529898de77ec3da873e3063ca4b10e7f5cc # v3.7.0
+        with:
+          version: "latest"
+
+  check-artifacthub:
+    if: ${{ inputs.artifacthub }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          # until https://github.com/actions/checkout/pull/579 is released
+          fetch-depth: 0
+      - name: Install kwctl
+        uses: kubewarden/github-actions/kwctl-installer@v3.1.12
+      - id: calculate-version
+        run: echo "version=$(git describe --tags --abbrev=0 | cut -c2-)" >> $GITHUB_OUTPUT
+        shell: bash
+      - name: Check that artifacthub-pkg.yml is up-to-date
+        uses: kubewarden/github-actions/check-artifacthub@v3.1.12
+        with:
+          version: ${{ steps.calculate-version.outputs.version }}
+          check_version: false # must match a git tag that hasn't been created yet, so let's ignore until then
