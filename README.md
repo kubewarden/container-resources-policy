@@ -33,11 +33,13 @@ definitions](https://kubernetes.io/docs/reference/kubernetes-api/common-definiti
 of Kubernetes.
 
 Any container that uses an image that matches an entry in this list will be excluded
-                from enforcement. 
+from enforcement.
 
 The `ignoreImages` configuration can be used to exclude containers from
 enforcement. Any container image that matches an entry in the list will be
 skipped. Prefix-matching can be signified with `*`. For example: `my-image-*`.
+It is recommended that users use the fully-qualified Docker image name (e.g. start with a domain name)
+in order to avoid unexpectedly exempting images from an untrusted repository.
 
 The policy verifies the consistency of the values provides:
 
