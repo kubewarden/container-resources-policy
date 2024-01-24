@@ -1,0 +1,93 @@
+{
+  "uid": "1299d386-525b-4032-98ae-1949f69f9cfc",
+  "kind": {
+    "group": "",
+    "version": "v1",
+    "kind": "Pod"
+  },
+  "resource": {
+    "group": "",
+    "version": "v1",
+    "resource": "pods"
+  },
+  "requestKind": {
+    "group": "",
+    "version": "v1",
+    "kind": "Pod"
+  },
+  "requestResource": {
+    "group": "",
+    "version": "v1",
+    "resource": "pods"
+  },
+  "name": "nginx",
+  "namespace": "default",
+  "operation": "CREATE",
+  "userInfo": {
+    "username": "kubernetes-admin",
+    "groups": [
+      "system:masters",
+      "system:authenticated"
+    ]
+  },
+  "object": {
+    "kind": "Pod",
+    "apiVersion": "v1",
+    "metadata": {
+      "name": "nginx",
+      "namespace": "default",
+      "uid": "04dc7a5e-e1f1-4e34-8d65-2c9337a43e64",
+      "labels": {
+        "env": "test"
+      },
+      "annotations": {
+        "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"annotations\":{},\"labels\":{\"env\":\"test\"},\"name\":\"nginx\",\"namespace\":\"default\"},\"spec\":{\"containers\":[{\"image\":\"nginx\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"nginx\"}],\"tolerations\":[{\"effect\":\"NoSchedule\",\"key\":\"example-key\",\"operator\":\"Exists\"}]}}\n"
+      }
+    },
+    "spec": {
+      "containers": [
+        {
+          "name": "pause",
+          "image": "registry.k8s.io/pause",
+	  "resources": {
+		  "limits": {
+			  "cpu": "3m",
+			  "memory": "3Gi"
+		  },
+		  "requests": {
+			  "cpu": "3m",
+			  "memory": "3Gi"
+		  }
+	  }
+        },
+        {
+          "name": "mycontainer",
+          "image": "image:latest",
+	  "resources": {
+		  "limits": {
+			  "cpu": "2m",
+			  "memory": "2Gi"
+		  },
+		  "requests": {
+			  "cpu": "2m",
+			  "memory": "2Gi"
+		  }
+	  }
+        }
+      ],
+      "restartPolicy": "Always",
+      "terminationGracePeriodSeconds": 30,
+      "dnsPolicy": "ClusterFirst",
+      "serviceAccountName": "default",
+      "serviceAccount": "default",
+      "securityContext": {},
+      "schedulerName": "default-scheduler"
+    }
+  },
+  "oldObject": null,
+  "dryRun": false,
+  "options": {
+    "kind": "CreateOptions",
+    "apiVersion": "meta.k8s.io/v1"
+  }
+}
