@@ -5,9 +5,9 @@
 # This config can be saved to its default location with:
 #   kwctl scaffold artifacthub > artifacthub-pkg.yml 
 version: 0.1.0-rc1
-name: Container Resources
+name: container-resources
 displayName: Container Resources
-createdAt: 2024-01-11T13:14:35.83415595Z
+createdAt: 2024-01-25T12:36:43.375206024Z
 description: Policy is designed to enforce constraints on the resource requirements of Kubernetes containers
 license: Apache-2.0
 homeURL: https://github.com/kubewarden/container-resources-policy
