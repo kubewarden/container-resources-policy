@@ -1,5 +1,12 @@
 #!/usr/bin/env bats
 
+@test "fail with empty settings" {
+  run kwctl run annotated-policy.wasm -r test_data/pod_within_range.json --settings-json '{}'
+
+  [ "$status" -ne 0 ]
+  [ $(expr "$output" : '.*no settings provided. At least one resource limit or request must be verified.*') -ne 0 ]
+}
+
 @test "accept containers within the expected range" {
   run kwctl run annotated-policy.wasm -r test_data/pod_within_range.json \
   	--settings-json '{"cpu": {"maxLimit": "3m", "defaultRequest" : "2m", "defaultLimit" : "2m"}, "memory" : {"maxLimit": "3G", "defaultRequest" : "2G", "defaultLimit" : "2G"}}'
