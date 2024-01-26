@@ -1,0 +1,77 @@
+questions:
+- default: null
+  description: >-
+    This policy is designed to enforce constraints on the resource requirements
+    of Kubernetes containers.
+  group: Settings
+  label: Description
+  required: false
+  hide_input: true
+  type: string
+  variable: description
+- default: {}
+  description: Defines the limit and minimum amount requested for CPU resource
+  group: Settings
+  label: CPU
+  hide_input: true
+  type: map[
+  variable: cpu
+  subquestions:
+    - default: ''
+      tooltip: >-
+        Defines default minimum CPU requested.
+      group: Settings
+      label: Default CPU requested
+      type: string
+      variable: cpu.defaultRequest
+    - default: ''
+      tooltip: >-
+        Defines default CPU limit value.
+      group: Settings
+      label: Default CPU limit
+      type: string
+      variable: cpu.defaultLimit
+    - default: ''
+      tooltip: >-
+        Defines maximum limit value allowed to be set for the CPU resource
+      group: Settings
+      label: Max CPU limit allowed
+      type: string
+      variable: cpu.maxLimit
+- default: {}
+  description: Defines the limit and minimum amount requested for memory resource
+  group: Settings
+  label: Memory
+  hide_input: true
+  type: map[
+  variable: memory
+  subquestions:
+    - default: ''
+      tooltip: >-
+        Defines default minimum memory requested.
+      group: Settings
+      label: Default memory requested
+      type: string
+      variable: memory.defaultRequest
+    - default: ''
+      tooltip: >-
+        Defines default memory limit value.
+      group: Settings
+      label: Default memory limit
+      type: string
+      variable: memory.defaultLimit
+    - default: ''
+      tooltip: >-
+        Defines maximum limit value allowed to be set for the memory resource
+      group: Settings
+      label: Max memory limit allowed
+      type: string
+      variable: memory.maxLimit
+- default: []
+  description: >-
+    Configuration used to exclude containers from enforcement
+  group: Settings
+  label: Ignore images
+  type: array[
+  value_multiline: false
+  variable: ignoreImages
