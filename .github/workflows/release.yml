@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install dependencies
-        uses: kubewarden/github-actions/policy-gh-action-dependencies@v3.1.12
+        uses: kubewarden/github-actions/policy-gh-action-dependencies@v3.1.14
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           # until https://github.com/actions/checkout/pull/579 is released
@@ -51,7 +51,7 @@ jobs:
         shell: bash
       - name: Check that artifacthub-pkg.yml is up-to-date
         if: ${{ inputs.artifacthub }}
-        uses: kubewarden/github-actions/check-artifacthub@v3.1.12
+        uses: kubewarden/github-actions/check-artifacthub@v3.1.14
         with:
           version: ${{ steps.calculate-version.outputs.version }}
       - name: Build policy
@@ -76,7 +76,7 @@ jobs:
             --output-signature policy-sbom.spdx.sig \
             policy-sbom.spdx.json
       - name: Upload policy SBOM files
-        uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392 # v4.0.0
+        uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
         with:
           name: policy-sbom
           path: |
@@ -87,7 +87,7 @@ jobs:
         run: |
           make e2e-tests
       - name: Release
-        uses: kubewarden/github-actions/policy-release@v3.1.12
+        uses: kubewarden/github-actions/policy-release@v3.1.14
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           oci-target: ghcr.io/${{ github.repository_owner }}/policies/container-resources
