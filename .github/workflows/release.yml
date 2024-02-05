@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install dependencies
-        uses: kubewarden/github-actions/policy-gh-action-dependencies@v3.1.14
+        uses: kubewarden/github-actions/policy-gh-action-dependencies@v3.1.15
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           # until https://github.com/actions/checkout/pull/579 is released
@@ -51,7 +51,7 @@ jobs:
         shell: bash
       - name: Check that artifacthub-pkg.yml is up-to-date
         if: ${{ inputs.artifacthub }}
-        uses: kubewarden/github-actions/check-artifacthub@v3.1.14
+        uses: kubewarden/github-actions/check-artifacthub@v3.1.15
         with:
           version: ${{ steps.calculate-version.outputs.version }}
       - name: Build policy
@@ -87,7 +87,7 @@ jobs:
         run: |
           make e2e-tests
       - name: Release
-        uses: kubewarden/github-actions/policy-release@v3.1.14
+        uses: kubewarden/github-actions/policy-release@v3.1.15
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           oci-target: ghcr.io/${{ github.repository_owner }}/policies/container-resources
