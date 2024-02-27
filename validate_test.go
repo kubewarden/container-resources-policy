@@ -363,9 +363,200 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 				t.Logf("%+v", test.container.Resources)
 				t.Error(diff)
 			}
-
 		})
 	}
+}
+
+func TestIgroreValues(t *testing.T) {
+	oneCore := resource.MustParse("1")
+	oneGi := resource.MustParse("1Gi")
+	oneCoreCpuQuantity := apimachinery_pkg_api_resource.Quantity("1")
+	oneGiMemoryQuantity := apimachinery_pkg_api_resource.Quantity("1Gi")
+	twoCoreCpuQuantity := apimachinery_pkg_api_resource.Quantity("2")
+	var tests = []struct {
+		name                  string
+		container             corev1.Container
+		settings              Settings
+		expectedResouceLimits *corev1.ResourceRequirements
+		expectedErrorMsg      string
+	}{
+
+		{"memory resources requests and limits defined and ignore cpu", corev1.Container{
+			Image: "image1:latest",
+			Resources: &corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu":    &oneCoreCpuQuantity,
+					"memory": &oneGiMemoryQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu":    &oneCoreCpuQuantity,
+					"memory": &oneGiMemoryQuantity,
+				},
+			},
+		},
+			Settings{
+				Cpu: &ResourceConfiguration{
+					IgnoreValues: true,
+				},
+				Memory: &ResourceConfiguration{
+					DefaultLimit:   oneGi,
+					DefaultRequest: oneGi,
+					MaxLimit:       oneGi,
+				},
+				IgnoreImages: []string{"image1:latest"},
+			}, &corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu":    &oneCoreCpuQuantity,
+					"memory": &oneGiMemoryQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu":    &oneCoreCpuQuantity,
+					"memory": &oneGiMemoryQuantity,
+				},
+			}, ""},
+		{"cpu resources requests and limits defined and ignore memory", corev1.Container{
+			Image: "image1:latest",
+			Resources: &corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu":    &oneCoreCpuQuantity,
+					"memory": &oneGiMemoryQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu":    &oneCoreCpuQuantity,
+					"memory": &oneGiMemoryQuantity,
+				},
+			},
+		}, Settings{
+			Cpu: &ResourceConfiguration{
+				DefaultLimit:   oneCore,
+				DefaultRequest: oneCore,
+				MaxLimit:       oneCore,
+				IgnoreValues:   true,
+			},
+			Memory: &ResourceConfiguration{
+				IgnoreValues: true,
+			},
+		}, &corev1.ResourceRequirements{
+			Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"cpu":    &oneCoreCpuQuantity,
+				"memory": &oneGiMemoryQuantity,
+			},
+			Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"cpu":    &oneCoreCpuQuantity,
+				"memory": &oneGiMemoryQuantity,
+			},
+		}, ""},
+		{"container with no resources defined and ignore values", corev1.Container{},
+			Settings{
+				Cpu: &ResourceConfiguration{
+					IgnoreValues: true,
+				},
+				Memory: &ResourceConfiguration{
+					IgnoreValues: true,
+				},
+			}, &corev1.ResourceRequirements{},
+			"container does not have any resource limits"},
+		{"container with missing cpu values and ignore cpu values", corev1.Container{
+			Image: "image1:latest",
+			Resources: &corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"memory": &oneGiMemoryQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"memory": &oneGiMemoryQuantity,
+				},
+			},
+		}, Settings{
+			Cpu: &ResourceConfiguration{
+				IgnoreValues: true,
+			},
+			Memory: &ResourceConfiguration{
+				DefaultLimit:   oneGi,
+				DefaultRequest: oneGi,
+				MaxLimit:       oneGi,
+			},
+		}, &corev1.ResourceRequirements{
+			Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"memory": &oneGiMemoryQuantity,
+			},
+			Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"memory": &oneGiMemoryQuantity,
+			},
+		}, "container does not have a cpu limit"},
+		{"container with missing memory values and ignore memory values", corev1.Container{
+			Image: "image1:latest",
+			Resources: &corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu": &twoCoreCpuQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu": &oneCoreCpuQuantity,
+				},
+			},
+		}, Settings{
+			Cpu: &ResourceConfiguration{
+				DefaultLimit:   oneCore,
+				DefaultRequest: oneCore,
+				MaxLimit:       oneCore,
+			},
+			Memory: &ResourceConfiguration{
+				IgnoreValues: true,
+			},
+		}, &corev1.ResourceRequirements{
+			Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"cpu": &twoCoreCpuQuantity,
+			},
+			Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"cpu": &oneCoreCpuQuantity,
+			},
+		}, "container does not have a memory limit"},
+		{"container missing memory requests values and ignore memory values", corev1.Container{
+			Image: "image1:latest",
+			Resources: &corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu":    &oneCoreCpuQuantity,
+					"memory": &oneGiMemoryQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu": &oneCoreCpuQuantity,
+				},
+			},
+		}, Settings{
+			Cpu: &ResourceConfiguration{
+				DefaultLimit:   oneCore,
+				DefaultRequest: oneCore,
+				MaxLimit:       oneCore,
+			},
+			Memory: &ResourceConfiguration{
+				IgnoreValues: true,
+			},
+		}, &corev1.ResourceRequirements{
+			Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"cpu":    &oneCoreCpuQuantity,
+				"memory": &oneGiMemoryQuantity,
+			},
+			Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"cpu": &oneCoreCpuQuantity,
+			},
+		}, "container does not have a memory request"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateContainerResources(&test.container, &test.settings)
+			if err != nil && len(test.expectedErrorMsg) == 0 {
+				t.Fatalf("unexpected error: %q", err)
+			}
+			if len(test.expectedErrorMsg) > 0 {
+				if err == nil {
+					t.Fatalf("expected error message with string '%s'. But no error has been returned", test.expectedErrorMsg)
+				}
+				if !strings.Contains(err.Error(), test.expectedErrorMsg) {
+					t.Errorf("invalid error message. Expected the string '%s' in the error. Got '%s'", test.expectedErrorMsg, err.Error())
+				}
+			}
+		})
+	}
+
 }
 
 func TestIgnoreImageSettings(t *testing.T) {

@@ -9,6 +9,24 @@ import (
 	kubewarden_protocol "github.com/kubewarden/policy-sdk-go/protocol"
 )
 
+func checkSettingsValues(t *testing.T, settings *ResourceConfiguration, expectedMaxLimit, expectedDefaultRequest, expectedDefaultLimit string, expectedIgnoreValues bool) {
+	actualMaxLimit := resource.MustParse(expectedMaxLimit)
+	if !settings.MaxLimit.Equal(actualMaxLimit) {
+		t.Errorf("invalid max limit quantity parsed. Expected %+v, got %+v", actualMaxLimit, settings.MaxLimit)
+	}
+	actualDefaultRequest := resource.MustParse(expectedDefaultRequest)
+	if !settings.DefaultRequest.Equal(actualDefaultRequest) {
+		t.Errorf("invalid default request quantity parsed. Expected %+v, got %+v", actualDefaultRequest, settings.DefaultRequest)
+	}
+	actualDefaultLimit := resource.MustParse(expectedDefaultLimit)
+	if !settings.DefaultLimit.Equal(actualDefaultLimit) {
+		t.Errorf("invalid default limit quantity parsed. Expected %+v, got %+v", actualDefaultLimit, settings.DefaultLimit)
+	}
+	if settings.IgnoreValues != expectedIgnoreValues {
+		t.Errorf("invalid ignoreValues value. Expected %t, got %t", expectedIgnoreValues, settings.IgnoreValues)
+	}
+}
+
 func TestParsingResourceConfiguration(t *testing.T) {
 	var tests = []struct {
 		name         string
@@ -16,6 +34,9 @@ func TestParsingResourceConfiguration(t *testing.T) {
 		errorMessage string
 	}{
 		{"no suffix", []byte(`{"maxLimit": "3", "defaultLimit": "2", "defaultRequest": "1"}`), ""},
+		{"invalid ignoreValues with valid resource configuration", []byte(`{"maxLimit": "3", "defaultLimit": "2", "defaultRequest": "1", "ignoreValues": true}`), "ignoreValues cannot be true when any quantities are defined"},
+		{"valid ignoreValues", []byte(`{"maxLimit": "3", "defaultLimit": "2", "defaultRequest": "1", "ignoreValues": false}`), ""},
+		{"valid ignoreValues", []byte(`{"ignoreValues": true}`), ""},
 		{"invalid limit suffix", []byte(`{"maxLimit": "1x", "defaultLimit": "1m", "defaultRequest": "1m"}`), "quantities must match the regular expression"},
 		{"invalid request suffix", []byte(`{"maxLimit": "3m", "defaultLimit": "2m", "defaultRequest": "1x"}`), "quantities must match the regular expression"},
 		{"defaults greater than max limit", []byte(`{"maxLimit": "2m", "defaultRequest": "3m", "defaultLimit": "4m"}`), "default values cannot be greater than the max limit"},
@@ -99,31 +120,8 @@ func TestNewSettingsFromValidationReq(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error %+v", err)
 	}
-	expectedCpuValue := resource.MustParse("3m")
-	if !settings.Cpu.MaxLimit.Equal(expectedCpuValue) {
-		t.Errorf("invalid cpu max limit quantity parsed. Expected %+v, go %+v", expectedCpuValue, settings.Cpu.MaxLimit)
-	}
-	expectedCpuValue = resource.MustParse("1m")
-	if !settings.Cpu.DefaultRequest.Equal(expectedCpuValue) {
-		t.Errorf("invalid cpu default request quantity parsed. Expected %+v, go %+v", expectedCpuValue, settings.Cpu.DefaultRequest)
-	}
-	expectedCpuValue = resource.MustParse("2m")
-	if !settings.Cpu.DefaultLimit.Equal(expectedCpuValue) {
-		t.Errorf("invalid cpu default limit quantity parsed. Expected %+v, go %+v", expectedCpuValue, settings.Cpu.DefaultLimit)
-	}
-
-	expectedMemoryValue := resource.MustParse("3G")
-	if !settings.Memory.MaxLimit.Equal(expectedMemoryValue) {
-		t.Errorf("invalid memory max limit quantity parsed. Expected %+v, go %+v", expectedMemoryValue, settings.Memory.MaxLimit)
-	}
-	expectedMemoryValue = resource.MustParse("2G")
-	if !settings.Memory.DefaultLimit.Equal(expectedMemoryValue) {
-		t.Errorf("invalid memory default limit quantity parsed. Expected %+v, go %+v", expectedMemoryValue, settings.Memory.DefaultLimit)
-	}
-	expectedMemoryValue = resource.MustParse("1G")
-	if !settings.Memory.DefaultRequest.Equal(expectedMemoryValue) {
-		t.Errorf("invalid memory default request quantity parsed. Expected %+v, go %+v", expectedMemoryValue, settings.Memory.DefaultRequest)
-	}
+	checkSettingsValues(t, settings.Cpu, "3m", "1m", "2m", false)
+	checkSettingsValues(t, settings.Memory, "3G", "1G", "2G", false)
 }
 
 func TestNewSettingsPartialFieldsOnlyFromValidationReq(t *testing.T) {
@@ -139,19 +137,7 @@ func TestNewSettingsPartialFieldsOnlyFromValidationReq(t *testing.T) {
 		if settings.Cpu != nil {
 			t.Fatal("cpu settings should be null")
 		}
-
-		expectedMemoryValue := resource.MustParse("3G")
-		if !settings.Memory.MaxLimit.Equal(expectedMemoryValue) {
-			t.Errorf("invalid memory max limit quantity parsed. Expected %+v, go %+v", expectedMemoryValue, settings.Memory.MaxLimit)
-		}
-		expectedMemoryValue = resource.MustParse("2G")
-		if !settings.Memory.DefaultLimit.Equal(expectedMemoryValue) {
-			t.Errorf("invalid memory default limit quantity parsed. Expected %+v, go %+v", expectedMemoryValue, settings.Memory.DefaultLimit)
-		}
-		expectedMemoryValue = resource.MustParse("1G")
-		if !settings.Memory.DefaultRequest.Equal(expectedMemoryValue) {
-			t.Errorf("invalid memory default request quantity parsed. Expected %+v, go %+v", expectedMemoryValue, settings.Memory.DefaultRequest)
-		}
+		checkSettingsValues(t, settings.Memory, "3G", "1G", "2G", false)
 	})
 	t.Run("only cpu fields", func(t *testing.T) {
 		validationReq := &kubewarden_protocol.ValidationRequest{
@@ -166,15 +152,43 @@ func TestNewSettingsPartialFieldsOnlyFromValidationReq(t *testing.T) {
 			t.Fatal("memory settings should be null")
 		}
 
-		expectedCpuValue := resource.MustParse("1")
-		if !settings.Cpu.MaxLimit.Equal(expectedCpuValue) {
-			t.Errorf("invalid memory max limit quantity parsed. Expected %+v, go %+v", expectedCpuValue, settings.Cpu.MaxLimit)
+		checkSettingsValues(t, settings.Cpu, "1", "1", "1", false)
+	})
+	t.Run("only memory fields with ignoreValues", func(t *testing.T) {
+		validationReq := &kubewarden_protocol.ValidationRequest{
+			Settings: []byte(`{"memory":{"maxLimit": "3G","defaultRequest": "1G", "defaultLimit": "2G", "ignoreValues": true}}`),
 		}
-		if !settings.Cpu.DefaultLimit.Equal(expectedCpuValue) {
-			t.Errorf("invalid memory default limit quantity parsed. Expected %+v, go %+v", expectedCpuValue, settings.Cpu.DefaultLimit)
+		settings, err := NewSettingsFromValidationReq(validationReq)
+		if err != nil {
+			t.Fatalf("Unexpected error %+v", err)
 		}
-		if !settings.Cpu.DefaultRequest.Equal(expectedCpuValue) {
-			t.Errorf("invalid memory default request quantity parsed. Expected %+v, go %+v", expectedCpuValue, settings.Cpu.DefaultRequest)
+		if settings.Cpu != nil {
+			t.Fatal("cpu settings should be null")
 		}
+		checkSettingsValues(t, settings.Memory, "3G", "1G", "2G", true)
+	})
+	t.Run("only cpu fields with ignoreValues", func(t *testing.T) {
+		validationReq := &kubewarden_protocol.ValidationRequest{
+			Settings: []byte(`{"cpu":{"maxLimit": "1","defaultRequest": "1", "defaultLimit": "1", "ignoreValues": true}}`),
+		}
+		settings, err := NewSettingsFromValidationReq(validationReq)
+		if err != nil {
+			t.Fatalf("Unexpected error %+v", err)
+		}
+		if settings.Memory != nil {
+			t.Fatal("memory settings should be null")
+		}
+		checkSettingsValues(t, settings.Cpu, "1", "1", "1", true)
+	})
+	t.Run("both cpu and memory fields with ignoreValues", func(t *testing.T) {
+		validationReq := &kubewarden_protocol.ValidationRequest{
+			Settings: []byte(`{"cpu":{"ignoreValues": true}, "memory":{"ignoreValues": true}}`),
+		}
+		settings, err := NewSettingsFromValidationReq(validationReq)
+		if err != nil {
+			t.Fatalf("Unexpected error %+v", err)
+		}
+		checkSettingsValues(t, settings.Cpu, "0", "0", "0", true)
+		checkSettingsValues(t, settings.Memory, "0", "0", "0", true)
 	})
 }

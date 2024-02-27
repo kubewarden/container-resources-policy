@@ -32,6 +32,29 @@ should be expressed using the [quantity
 definitions](https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/quantity/)
 of Kubernetes.
 
+If you would only like to enforce that requests and limits are set (ie, you do not care
+what they are set to, just that they have been set), you can set `ignoreValues` to `true`.
+This will skip the enforcement of specific values and only enforce that requests and
+limits are set. Here is an example of how to configure this:
+
+```yaml
+# optional
+memory:
+  ignoreValues: true
+# optional
+cpu:
+  defaultRequest: 100m
+  defaultLimit: 200m
+  maxLimit: 500m
+# optional
+ignoreImages: ["ghcr.io/foo/bar:1.23", "myimage", "otherimages:v1"]
+```
+
+Please note from the above example, that when `ignoreValues` is set to `true`, the
+`defaultRequest`, `defaultLimit`, and `maxLimit` fields must not be set. Additionally,
+`ignoreValues` default value is `false`, so it's recommended to only provide it when
+you want to set it to `true`.
+
 Any container that uses an image that matches an entry in this list will be excluded
 from enforcement.
 

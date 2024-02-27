@@ -7,6 +7,14 @@
   [ $(expr "$output" : '.*no settings provided. At least one resource limit or request must be verified.*') -ne 0 ]
 }
 
+@test "no quantities are allowed when ignoreValues is true" {
+  run kwctl run annotated-policy.wasm -r test_data/pod_exceeding_range.json \
+  	--settings-json '{"cpu": {"maxLimit": "1m", "defaultRequest" : "1m", "defaultLimit" : "1m", "ignoreValues": true}, "memory" : {"maxLimit": "1G", "defaultRequest" : "1G", "defaultLimit" : "1G", "ignoreValues": true}, "ignoreImages": ["image:latest"]}'
+
+  [ "$status" -ne 0 ]
+  [ $(expr "$output" : '.*ignoreValues cannot be true when any quantities are defined.*') -ne 0 ]
+}
+
 @test "accept containers within the expected range" {
   run kwctl run annotated-policy.wasm -r test_data/pod_within_range.json \
   	--settings-json '{"cpu": {"maxLimit": "3m", "defaultRequest" : "2m", "defaultLimit" : "2m"}, "memory" : {"maxLimit": "3G", "defaultRequest" : "2G", "defaultLimit" : "2G"}}'
@@ -52,6 +60,15 @@
   [ $(expr "$output" : '.*patch.*') -ne 0 ]
 }
 
+@test "reject deployment with no resources when ignoreValues is true" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_without_resources_admission_request.json \
+    	--settings-json '{"cpu": {"ignoreValues": true}, "memory" : {"ignoreValues": true}}'
+
+    [ "$status" -eq 0 ]
+    [ $(expr "$output" : '.*allowed.*false') -ne 0 ]
+    [ $(expr "$output" : '.*patch.*') -eq 0 ]
+}
+
 @test "mutate deployment with limits but no request resources" {
   run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
   	--settings-json '{"cpu": {"maxLimit": "4", "defaultRequest" : "2", "defaultLimit" : "2"}, "memory" : {"maxLimit": "4G", "defaultRequest" : "2G", "defaultLimit" : "2G"}}'
@@ -60,4 +77,19 @@
   [ $(expr "$output" : '.*allowed.*true') -ne 0 ]
   [ $(expr "$output" : '.*patch.*') -ne 0 ]
 }
+@test "reject containers with no resources when ignoreValues is true" {
+  run kwctl run annotated-policy.wasm -r test_data/pod_without_resources.json \
+  	--settings-json '{"cpu": {"ignoreValues": true}, "memory" : {"ignoreValues": true}}'
 
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed.*false') -ne 0 ]
+  [ $(expr "$output" : '.*patch.*') -eq 0 ]
+}
+@test "allow containers while ignoring resources" {
+  run kwctl run annotated-policy.wasm -r test_data/pod_within_range.json \
+  	--settings-json '{"cpu": {"ignoreValues": true}, "memory" : {"ignoreValues": true}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed.*true') -ne 0 ]
+  [ $(expr "$output" : '.*patch.*') -eq 0 ]
+}

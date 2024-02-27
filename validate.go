@@ -12,9 +12,13 @@ import (
 	kubewarden_protocol "github.com/kubewarden/policy-sdk-go/protocol"
 )
 
+func missingResourceQuantity(resources map[string]*api_resource.Quantity, resourceName string) bool {
+	resourceStr, found := resources[resourceName]
+	return !found || resourceStr == nil || len(strings.TrimSpace(string(*resourceStr))) == 0
+}
+
 func adjustResourceRequest(container *corev1.Container, resourceName string, resourceConfig *ResourceConfiguration) bool {
-	resourceStr, found := container.Resources.Requests[resourceName]
-	if !found || resourceStr == nil || len(strings.TrimSpace(string(*resourceStr))) == 0 {
+	if missingResourceQuantity(container.Resources.Requests, resourceName) {
 		if !resourceConfig.DefaultRequest.IsZero() {
 			newRequest := api_resource.Quantity(resourceConfig.DefaultRequest.String())
 			container.Resources.Requests[resourceName] = &newRequest
@@ -22,6 +26,58 @@ func adjustResourceRequest(container *corev1.Container, resourceName string, res
 		}
 	}
 	return false
+}
+
+func validateContainerResourceLimits(container *corev1.Container, settings *Settings) error {
+	if container.Resources.Limits == nil && settings.Cpu.IgnoreValues && settings.Memory.IgnoreValues {
+		return fmt.Errorf("container does not have any resource limits")
+	}
+
+	if settings.Cpu.IgnoreValues && missingResourceQuantity(container.Resources.Limits, "cpu") {
+		return fmt.Errorf("container does not have a cpu limit")
+	}
+
+	if settings.Memory.IgnoreValues && missingResourceQuantity(container.Resources.Limits, "memory") {
+		return fmt.Errorf("container does not have a memory limit")
+	}
+
+	return nil
+}
+
+func validateContainerResourceRequests(container *corev1.Container, settings *Settings) error {
+	if container.Resources.Requests == nil && settings.Cpu.IgnoreValues && settings.Memory.IgnoreValues {
+		return fmt.Errorf("container does not have any resource requests")
+	}
+
+	_, found := container.Resources.Requests["cpu"]
+	if !found && settings.Cpu.IgnoreValues {
+		return fmt.Errorf("container does not have a cpu request")
+	}
+
+	_, found = container.Resources.Requests["memory"]
+	if !found && settings.Memory.IgnoreValues {
+		return fmt.Errorf("container does not have a memory request")
+	}
+
+	return nil
+}
+
+// If IgnoreValues is set to true, confirm that the respective limits/requests are set.
+// We only check for the presence of the limits/requests, not their values.
+// Returns an error if the limits/requests are not set and IgnoreValues is set to true.
+func validateContainerResources(container *corev1.Container, settings *Settings) error {
+	if container.Resources == nil && (settings.Cpu.IgnoreValues || settings.Memory.IgnoreValues) {
+		missing := fmt.Sprintf("required Cpu:%t, Memory:%t", settings.Cpu.IgnoreValues, settings.Memory.IgnoreValues)
+		return fmt.Errorf("container does not have any resource limits or requests: %s", missing)
+	}
+	if err := validateContainerResourceLimits(container, settings); err != nil {
+		return err
+	}
+	if err := validateContainerResourceRequests(container, settings); err != nil {
+		return err
+	}
+	return nil
+
 }
 
 // When the CPU/Memory request is specified: no action or check is done against it.
@@ -39,14 +95,14 @@ func validateAndAdjustContainerResourceRequests(container *corev1.Container, set
 }
 
 func validateAndAdjustContainerResourceLimit(container *corev1.Container, resourceName string, resourceConfig *ResourceConfiguration) (bool, error) {
-	resourceStr, found := container.Resources.Limits[resourceName]
-	if !found || resourceStr == nil || len(strings.TrimSpace(string(*resourceStr))) == 0 {
+	if missingResourceQuantity(container.Resources.Limits, resourceName) {
 		if !resourceConfig.DefaultLimit.IsZero() {
 			newLimit := api_resource.Quantity(resourceConfig.DefaultLimit.String())
 			container.Resources.Limits[resourceName] = &newLimit
 			return true, nil
 		}
 	} else {
+		resourceStr := container.Resources.Limits[resourceName]
 		resourceLimit, err := resource.ParseQuantity(string(*resourceStr))
 		if err != nil {
 			return false, fmt.Errorf("invalid %s limit", resourceName)
@@ -63,6 +119,9 @@ func validateAndAdjustContainerResourceLimit(container *corev1.Container, resour
 // Return `true` when the container has been mutated.
 func validateAndAdjustContainerResourceLimits(container *corev1.Container, settings *Settings) (bool, error) {
 	mutated := false
+	if settings.Memory.IgnoreValues {
+		return false, nil
+	}
 	if settings.Memory != nil {
 		var err error
 		mutated, err = validateAndAdjustContainerResourceLimit(container, "memory", settings.Memory)
@@ -71,6 +130,9 @@ func validateAndAdjustContainerResourceLimits(container *corev1.Container, setti
 		}
 	}
 
+	if settings.Cpu.IgnoreValues {
+		return false, nil
+	}
 	if settings.Cpu != nil {
 		cpuMutation, err := validateAndAdjustContainerResourceLimit(container, "cpu", settings.Cpu)
 		if err != nil {
@@ -125,6 +187,10 @@ func validatePodSpec(pod *corev1.PodSpec, settings *Settings) (bool, error) {
 		if shouldSkipContainer(container.Image, settings.IgnoreImages) {
 			continue
 		}
+		if err := validateContainerResources(container, settings); err != nil {
+			return false, err
+		}
+
 		containerMutated, err := validateAndAdjustContainer(container, settings)
 		if err != nil {
 			return false, err

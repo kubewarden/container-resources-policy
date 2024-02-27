@@ -14,6 +14,7 @@ type ResourceConfiguration struct {
 	MaxLimit       resource.Quantity `json:"maxLimit"`
 	DefaultRequest resource.Quantity `json:"defaultRequest"`
 	DefaultLimit   resource.Quantity `json:"defaultLimit"`
+	IgnoreValues   bool              `json:"ignoreValues,omitempty"`
 }
 
 type Settings struct {
@@ -23,9 +24,18 @@ type Settings struct {
 }
 
 func (r *ResourceConfiguration) valid() error {
+	if (!r.MaxLimit.IsZero() || !r.DefaultLimit.IsZero() || !r.DefaultRequest.IsZero()) && r.IgnoreValues {
+		return fmt.Errorf("ignoreValues cannot be true when any quantities are defined")
+	}
+
+	if r.IgnoreValues {
+		return nil
+	}
+
 	if r.MaxLimit.IsZero() && r.DefaultLimit.IsZero() && r.DefaultRequest.IsZero() {
 		return fmt.Errorf("all the quantities must be defined")
 	}
+
 	if r.MaxLimit.Cmp(r.DefaultLimit) < 0 ||
 		r.MaxLimit.Cmp(r.DefaultRequest) < 0 {
 		return fmt.Errorf("default values cannot be greater than the max limit")
@@ -38,15 +48,15 @@ func (s *Settings) Valid() error {
 	if s.Cpu == nil && s.Memory == nil {
 		return fmt.Errorf("no settings provided. At least one resource limit or request must be verified")
 	}
-	var cpuError, memoryError error;
+	var cpuError, memoryError error
 	if s.Cpu != nil {
-		cpuError = s.Cpu.valid();
+		cpuError = s.Cpu.valid()
 		if cpuError != nil {
 			cpuError = errors.Join(fmt.Errorf("invalid cpu settings"), cpuError)
 		}
 	}
 	if s.Memory != nil {
-		memoryError =  s.Memory.valid(); 
+		memoryError = s.Memory.valid()
 		if memoryError != nil {
 			memoryError = errors.Join(fmt.Errorf("invalid memory settings"), memoryError)
 		}
@@ -54,7 +64,7 @@ func (s *Settings) Valid() error {
 	if cpuError != nil || memoryError != nil {
 		return errors.Join(cpuError, memoryError)
 	}
-	return  nil
+	return nil
 }
 
 func NewSettingsFromValidationReq(validationReq *kubewarden_protocol.ValidationRequest) (Settings, error) {
@@ -74,6 +84,6 @@ func validateSettings(payload []byte) ([]byte, error) {
 	err = settings.Valid()
 	if err != nil {
 		return kubewarden.RejectSettings(kubewarden.Message(fmt.Sprintf("Provided settings are not valid: %v", err)))
-	} 
+	}
 	return kubewarden.AcceptSettings()
 }
