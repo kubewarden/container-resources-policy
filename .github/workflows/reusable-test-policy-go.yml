@@ -33,8 +33,8 @@ jobs:
       - name: Install patched tinygo
         shell: bash
         run: |
-          wget https://github.com/tinygo-org/tinygo/releases/download/v0.28.1/tinygo_0.28.1_amd64.deb
-          sudo dpkg -i tinygo_0.28.1_amd64.deb
+          wget https://github.com/tinygo-org/tinygo/releases/download/v0.31.1/tinygo_0.31.1_amd64.deb
+          sudo dpkg -i tinygo_0.31.1_amd64.deb
           wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-16/libclang_rt.builtins-wasm32-wasi-16.0.tar.gz
           tar xvf libclang_rt.builtins-wasm32-wasi-16.0.tar.gz
           sudo cp lib/wasi/libclang_rt.builtins-wasm32.a /usr/local/lib/tinygo/lib/wasi-libc/sysroot/lib/wasm32-wasi/
