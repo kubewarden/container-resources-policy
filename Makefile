@@ -3,7 +3,7 @@ VERSION := $(shell git describe | cut -c2-)
 
 # We cannot use the official tinygo container image until
 # this issue is closed: https://github.com/tinygo-org/tinygo/issues/3501
-CONTAINER_IMAGE = ghcr.io/kubewarden/tinygo/tinygo-dev:0.28.1-multi3_fix
+CONTAINER_IMAGE = ghcr.io/kubewarden/tinygo/tinygo-dev:0.31.1-multi3_fix
 
 # TODO: drop this once we can use the official tinygo container image
 # see comment from above
