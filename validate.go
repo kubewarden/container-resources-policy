@@ -94,6 +94,8 @@ func validateAndAdjustContainerResourceRequests(container *corev1.Container, set
 	return mutated
 }
 
+// validateAndAdjustContainerResourceLimit validates the container against the passed resourceConfig // and mutates it if the validation didn't pass.
+// Returns true when it mutates the container.
 func validateAndAdjustContainerResourceLimit(container *corev1.Container, resourceName string, resourceConfig *ResourceConfiguration) (bool, error) {
 	if missingResourceQuantity(container.Resources.Limits, resourceName) {
 		if !resourceConfig.DefaultLimit.IsZero() {
