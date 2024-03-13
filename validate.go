@@ -77,7 +77,6 @@ func validateContainerResources(container *corev1.Container, settings *Settings)
 		return err
 	}
 	return nil
-
 }
 
 // When the CPU/Memory request is specified: no action or check is done against it.
@@ -116,8 +115,16 @@ func validateAndAdjustContainerResourceLimit(container *corev1.Container, resour
 	return false, nil
 }
 
-// When the CPU/Memory limit is specified: the request is accepted if the limit defined by the container is less than or equal to the `maxLimit`. Otherwise the request is rejected.
-// When the CPU/Memory limit is not specified: the container is mutated to use the `defaultLimit`.
+// validateAndAdjustContainerResourceLimits validates the container and mutates
+// it when possible, when it doesn't pass validation.
+//
+// When the CPU/Memory limit is specified: the request is accepted if the limit
+// defined by the container is less than or equal to the `maxLimit`, or
+// IgnoreValues is true. Otherwise the request is rejected.
+//
+// When the CPU/Memory limit is not specified: the container is mutated to use
+// the `defaultLimit`.
+//
 // Return `true` when the container has been mutated.
 func validateAndAdjustContainerResourceLimits(container *corev1.Container, settings *Settings) (bool, error) {
 	mutated := false
@@ -164,7 +171,6 @@ func validateAndAdjustContainer(container *corev1.Container, settings *Settings)
 	}
 	requestsMutation := validateAndAdjustContainerResourceRequests(container, settings)
 	return limitsMutation || requestsMutation, nil
-
 }
 
 func shouldSkipContainer(image string, ignoreImages []string) bool {
@@ -200,7 +206,6 @@ func validatePodSpec(pod *corev1.PodSpec, settings *Settings) (bool, error) {
 		mutated = mutated || containerMutated
 	}
 	return mutated, nil
-
 }
 
 func validate(payload []byte) ([]byte, error) {
