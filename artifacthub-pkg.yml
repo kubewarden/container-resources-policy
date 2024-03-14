@@ -3,25 +3,25 @@
 # Use this config to submit the policy to https://artifacthub.io.
 #
 # This config can be saved to its default location with:
-#   kwctl scaffold artifacthub > artifacthub-pkg.yml
+#   kwctl scaffold artifacthub > artifacthub-pkg.yml 
 version: 0.2.0
 name: container-resources
 displayName: Container Resources
-createdAt: 2024-03-14T16:13:46.323521528Z
+createdAt: 2024-03-14T15:31:03.884823532Z
 description: Policy is designed to enforce constraints on the resource requirements of Kubernetes containers
 license: Apache-2.0
 homeURL: https://github.com/kubewarden/container-resources-policy
 containersImages:
-  - name: policy
-    image: ghcr.io/kubewarden/policies/container-resources:v0.2.0
+- name: policy
+  image: ghcr.io/kubewarden/policies/container-resources:v0.2.0
 keywords:
-  - container
-  - resources
+- container
+- resources
 links:
-  - name: policy
-    url: https://github.com/kubewarden/container-resources-policy/releases/download/v0.2.0/policy.wasm
-  - name: source
-    url: https://github.com/kubewarden/container-resources-policy
+- name: policy
+  url: https://github.com/kubewarden/container-resources-policy/releases/download/v0.2.0/policy.wasm
+- name: source
+  url: https://github.com/kubewarden/container-resources-policy
 install: |
   The policy can be obtained using [`kwctl`](https://github.com/kubewarden/kwctl):
   ```console
@@ -32,14 +32,14 @@ install: |
   kwctl scaffold manifest -t ClusterAdmissionPolicy registry://ghcr.io/kubewarden/policies/container-resources:v0.2.0
   ```
 maintainers:
-  - name: Kubewarden developers
-    email: cncf-kubewarden-maintainers@lists.cncf.io
+- name: Kubewarden developers
+  email: cncf-kubewarden-maintainers@lists.cncf.io
 provider:
   name: kubewarden
 recommendations:
-  - url: https://artifacthub.io/packages/helm/kubewarden/kubewarden-controller
+- url: https://artifacthub.io/packages/helm/kubewarden/kubewarden-controller
 annotations:
-  kubewarden/mutation: "true"
+  kubewarden/mutation: 'true'
   kubewarden/questions-ui: |
     questions:
     - default: null
