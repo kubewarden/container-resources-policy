@@ -539,6 +539,58 @@ func TestIgroreValues(t *testing.T) {
 				"cpu": &oneCoreCpuQuantity,
 			},
 		}, "container does not have a memory request"},
+		{"no memory settings", corev1.Container{
+			Image: "image1:latest",
+			Resources: &corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu":    &oneCoreCpuQuantity,
+					"memory": &oneGiMemoryQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu": &oneCoreCpuQuantity,
+				},
+			},
+		}, Settings{
+			Cpu: &ResourceConfiguration{
+				DefaultLimit:   oneCore,
+				DefaultRequest: oneCore,
+				MaxLimit:       oneCore,
+			},
+			Memory: nil,
+		}, &corev1.ResourceRequirements{
+			Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"cpu":    &oneCoreCpuQuantity,
+				"memory": &oneGiMemoryQuantity,
+			},
+			Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"cpu": &oneCoreCpuQuantity,
+			},
+		}, ""},
+		{"no cpu settings", corev1.Container{
+			Image: "image1:latest",
+			Resources: &corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"memory": &oneGiMemoryQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"memory": &oneGiMemoryQuantity,
+				},
+			},
+		}, Settings{
+			Cpu: nil,
+			Memory: &ResourceConfiguration{
+				DefaultLimit:   oneGi,
+				DefaultRequest: oneGi,
+				MaxLimit:       oneGi,
+			},
+		}, &corev1.ResourceRequirements{
+			Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"memory": &oneGiMemoryQuantity,
+			},
+			Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"memory": &oneGiMemoryQuantity,
+			},
+		}, ""},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
