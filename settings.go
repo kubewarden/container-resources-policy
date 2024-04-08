@@ -23,6 +23,14 @@ type Settings struct {
 	IgnoreImages []string               `json:"ignoreImages,omitempty"`
 }
 
+func (s *Settings) shouldIgnoreCpuValues() bool {
+	return s.Cpu != nil && s.Cpu.IgnoreValues
+}
+
+func (s *Settings) shouldIgnoreMemoryValues() bool {
+	return s.Memory != nil && s.Memory.IgnoreValues
+}
+
 func (r *ResourceConfiguration) valid() error {
 	if (!r.MaxLimit.IsZero() || !r.DefaultLimit.IsZero() || !r.DefaultRequest.IsZero()) && r.IgnoreValues {
 		return fmt.Errorf("ignoreValues cannot be true when any quantities are defined")
