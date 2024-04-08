@@ -29,15 +29,15 @@ func adjustResourceRequest(container *corev1.Container, resourceName string, res
 }
 
 func validateContainerResourceLimits(container *corev1.Container, settings *Settings) error {
-	if container.Resources.Limits == nil && settings.Cpu.IgnoreValues && settings.Memory.IgnoreValues {
+	if container.Resources.Limits == nil && settings.shouldIgnoreCpuValues() && settings.shouldIgnoreMemoryValues() {
 		return fmt.Errorf("container does not have any resource limits")
 	}
 
-	if settings.Cpu.IgnoreValues && missingResourceQuantity(container.Resources.Limits, "cpu") {
+	if settings.shouldIgnoreCpuValues() && missingResourceQuantity(container.Resources.Limits, "cpu") {
 		return fmt.Errorf("container does not have a cpu limit")
 	}
 
-	if settings.Memory.IgnoreValues && missingResourceQuantity(container.Resources.Limits, "memory") {
+	if settings.shouldIgnoreMemoryValues() && missingResourceQuantity(container.Resources.Limits, "memory") {
 		return fmt.Errorf("container does not have a memory limit")
 	}
 
@@ -45,17 +45,17 @@ func validateContainerResourceLimits(container *corev1.Container, settings *Sett
 }
 
 func validateContainerResourceRequests(container *corev1.Container, settings *Settings) error {
-	if container.Resources.Requests == nil && settings.Cpu.IgnoreValues && settings.Memory.IgnoreValues {
+	if container.Resources.Requests == nil && settings.shouldIgnoreCpuValues() && settings.shouldIgnoreMemoryValues() {
 		return fmt.Errorf("container does not have any resource requests")
 	}
 
 	_, found := container.Resources.Requests["cpu"]
-	if !found && settings.Cpu.IgnoreValues {
+	if !found && settings.shouldIgnoreCpuValues() {
 		return fmt.Errorf("container does not have a cpu request")
 	}
 
 	_, found = container.Resources.Requests["memory"]
-	if !found && settings.Memory.IgnoreValues {
+	if !found && settings.shouldIgnoreMemoryValues() {
 		return fmt.Errorf("container does not have a memory request")
 	}
 
@@ -66,8 +66,8 @@ func validateContainerResourceRequests(container *corev1.Container, settings *Se
 // We only check for the presence of the limits/requests, not their values.
 // Returns an error if the limits/requests are not set and IgnoreValues is set to true.
 func validateContainerResources(container *corev1.Container, settings *Settings) error {
-	if container.Resources == nil && (settings.Cpu.IgnoreValues || settings.Memory.IgnoreValues) {
-		missing := fmt.Sprintf("required Cpu:%t, Memory:%t", settings.Cpu.IgnoreValues, settings.Memory.IgnoreValues)
+	if container.Resources == nil && ( settings.shouldIgnoreCpuValues() || settings.shouldIgnoreMemoryValues()) {
+		missing := fmt.Sprintf("required Cpu:%t, Memory:%t", settings.shouldIgnoreCpuValues(), settings.shouldIgnoreMemoryValues())
 		return fmt.Errorf("container does not have any resource limits or requests: %s", missing)
 	}
 	if err := validateContainerResourceLimits(container, settings); err != nil {
@@ -128,7 +128,7 @@ func validateAndAdjustContainerResourceLimit(container *corev1.Container, resour
 // Return `true` when the container has been mutated.
 func validateAndAdjustContainerResourceLimits(container *corev1.Container, settings *Settings) (bool, error) {
 	mutated := false
-	if settings.Memory.IgnoreValues {
+	if settings.shouldIgnoreMemoryValues() {
 		return false, nil
 	}
 	if settings.Memory != nil {
@@ -139,7 +139,7 @@ func validateAndAdjustContainerResourceLimits(container *corev1.Container, setti
 		}
 	}
 
-	if settings.Cpu.IgnoreValues {
+	if settings.shouldIgnoreCpuValues() {
 		return false, nil
 	}
 	if settings.Cpu != nil {
@@ -240,6 +240,5 @@ func validate(payload []byte) ([]byte, error) {
 	} else {
 		return kubewarden.RejectRequest(kubewarden.Message(err.Error()), kubewarden.Code(400))
 	}
-
 	return kubewarden.AcceptRequest()
 }
