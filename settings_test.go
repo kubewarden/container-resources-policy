@@ -34,9 +34,10 @@ func TestParsingResourceConfiguration(t *testing.T) {
 		errorMessage string
 	}{
 		{"no suffix", []byte(`{"maxLimit": "3", "defaultLimit": "2", "defaultRequest": "1"}`), ""},
-		{"invalid ignoreValues with valid resource configuration", []byte(`{"maxLimit": "3", "defaultLimit": "2", "defaultRequest": "1", "ignoreValues": true}`), "ignoreValues cannot be true when any quantities are defined"},
+		{"valid ignoreValues with valid resource configuration", []byte(`{"maxLimit": "3", "defaultLimit": "2", "defaultRequest": "1", "ignoreValues": true}`), ""},
 		{"valid ignoreValues", []byte(`{"maxLimit": "3", "defaultLimit": "2", "defaultRequest": "1", "ignoreValues": false}`), ""},
 		{"valid ignoreValues", []byte(`{"ignoreValues": true}`), ""},
+		{"invalid ignoreValues", []byte(`{"ignoreValues": false}`), "all the quantities must be defined"},
 		{"invalid limit suffix", []byte(`{"maxLimit": "1x", "defaultLimit": "1m", "defaultRequest": "1m"}`), "quantities must match the regular expression"},
 		{"invalid request suffix", []byte(`{"maxLimit": "3m", "defaultLimit": "2m", "defaultRequest": "1x"}`), "quantities must match the regular expression"},
 		{"defaults greater than max limit", []byte(`{"maxLimit": "2m", "defaultRequest": "3m", "defaultLimit": "4m"}`), "default values cannot be greater than the max limit"},

@@ -128,10 +128,7 @@ func validateAndAdjustContainerResourceLimit(container *corev1.Container, resour
 // Return `true` when the container has been mutated.
 func validateAndAdjustContainerResourceLimits(container *corev1.Container, settings *Settings) (bool, error) {
 	mutated := false
-	if settings.shouldIgnoreMemoryValues() {
-		return false, nil
-	}
-	if settings.Memory != nil {
+	if !settings.shouldIgnoreMemoryValues() && settings.Memory != nil {
 		var err error
 		mutated, err = validateAndAdjustContainerResourceLimit(container, "memory", settings.Memory)
 		if err != nil {
@@ -139,10 +136,7 @@ func validateAndAdjustContainerResourceLimits(container *corev1.Container, setti
 		}
 	}
 
-	if settings.shouldIgnoreCpuValues() {
-		return false, nil
-	}
-	if settings.Cpu != nil {
+	if !settings.shouldIgnoreCpuValues() && settings.Cpu != nil {
 		cpuMutation, err := validateAndAdjustContainerResourceLimit(container, "cpu", settings.Cpu)
 		if err != nil {
 			return false, err

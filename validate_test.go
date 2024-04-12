@@ -340,6 +340,73 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					"memory": &oneGiMemoryQuantity,
 				},
 			}, true, ""},
+		{"cpu exceeds limit while ignore memory values", corev1.Container{
+			Image: "image1:latest",
+			Resources: &corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"memory": &twoGiMemoryQuantity,
+					"cpu":    &twoCoreCpuQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"memory": &twoGiMemoryQuantity,
+					"cpu":    &twoCoreCpuQuantity,
+				},
+			},
+		}, Settings{
+			Cpu: &ResourceConfiguration{
+				DefaultLimit:   oneCore,
+				DefaultRequest: oneCore,
+				MaxLimit:       oneCore,
+			},
+			Memory: &ResourceConfiguration{
+				IgnoreValues: true,
+				DefaultLimit:   oneGi,
+				DefaultRequest: oneGi,
+				MaxLimit:       oneGi,
+			},
+		}, &corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"memory": &twoGiMemoryQuantity,
+					"cpu":    &twoCoreCpuQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"memory": &twoGiMemoryQuantity,
+					"cpu":    &twoCoreCpuQuantity,
+				},
+		}, false,  "cpu limit '2' exceeds the max allowed value '1'"},
+		{"memory exceeds limit while ignore cpu values", corev1.Container{
+			Resources: &corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"memory": &twoGiMemoryQuantity,
+					"cpu":    &twoCoreCpuQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"memory": &twoGiMemoryQuantity,
+					"cpu":    &twoCoreCpuQuantity,
+				},
+			},
+		}, Settings{
+			Cpu: &ResourceConfiguration{
+				IgnoreValues: true,
+				DefaultLimit:   oneCore,
+				DefaultRequest: oneCore,
+				MaxLimit:       oneCore,
+			},
+			Memory: &ResourceConfiguration{
+				DefaultLimit:   oneGi,
+				DefaultRequest: oneGi,
+				MaxLimit:       oneGi,
+			},
+		}, &corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"memory": &twoGiMemoryQuantity,
+					"cpu":    &twoCoreCpuQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"memory": &twoGiMemoryQuantity,
+					"cpu":    &twoCoreCpuQuantity,
+				},
+		}, false, "memory limit '2Gi' exceeds the max allowed value '1Gi'"},
 	}
 
 	for _, test := range tests {
