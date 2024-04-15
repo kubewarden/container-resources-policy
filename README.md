@@ -50,10 +50,10 @@ cpu:
 ignoreImages: ["ghcr.io/foo/bar:1.23", "myimage", "otherimages:v1"]
 ```
 
-Please note from the above example, that when `ignoreValues` is set to `true`, the
-`defaultRequest`, `defaultLimit`, and `maxLimit` fields must not be set. Additionally,
-`ignoreValues` default value is `false`, so it's recommended to only provide it when
-you want to set it to `true`.
+Please note from the above example, that when `ignoreValues` is set to `true`,
+the `defaultRequest`, `defaultLimit`, and `maxLimit` fields, if set, will be
+ignored. Additionally, `ignoreValues` default value is `false`, so it's
+recommended to only provide it when you want to set it to `true`.
 
 Any container that uses an image that matches an entry in this list will be excluded
 from enforcement.

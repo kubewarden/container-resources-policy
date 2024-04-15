@@ -7,14 +7,6 @@
   [ $(expr "$output" : '.*no settings provided. At least one resource limit or request must be verified.*') -ne 0 ]
 }
 
-@test "no quantities are allowed when ignoreValues is true" {
-  run kwctl run annotated-policy.wasm -r test_data/pod_exceeding_range.json \
-  	--settings-json '{"cpu": {"maxLimit": "1m", "defaultRequest" : "1m", "defaultLimit" : "1m", "ignoreValues": true}, "memory" : {"maxLimit": "1G", "defaultRequest" : "1G", "defaultLimit" : "1G", "ignoreValues": true}, "ignoreImages": ["image:latest"]}'
-
-  [ "$status" -ne 0 ]
-  [ $(expr "$output" : '.*ignoreValues cannot be true when any quantities are defined.*') -ne 0 ]
-}
-
 @test "accept containers within the expected range" {
   run kwctl run annotated-policy.wasm -r test_data/pod_within_range.json \
   	--settings-json '{"cpu": {"maxLimit": "3m", "defaultRequest" : "2m", "defaultLimit" : "2m"}, "memory" : {"maxLimit": "3G", "defaultRequest" : "2G", "defaultLimit" : "2G"}}'
@@ -109,5 +101,23 @@
 
   [ "$status" -eq 0 ]
   [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+  [ $(expr "$output" : '.*patch.*') -eq 0 ]
+}
+
+@test "allow containers exceeding the expected range when ignoreValues is true" {
+  run kwctl run annotated-policy.wasm -r test_data/pod_exceeding_range.json \
+  	--settings-json '{"cpu": {"maxLimit": "1m", "defaultRequest" : "1m", "defaultLimit" : "1m", "ignoreValues":true}, "memory" : {"maxLimit": "1G", "defaultRequest" : "1G", "defaultLimit" : "1G", "ignoreValues":true}, "ignoreImages": ["image:latest"]}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+  [ $(expr "$output" : '.*patch.*') -eq 0 ]
+}
+
+@test "reject containers exceeding the expected range ignoring memory values" {
+  run kwctl run annotated-policy.wasm -r test_data/pod_exceeding_range.json \
+  	--settings-json '{"cpu": {"maxLimit": "1m", "defaultRequest" : "1m", "defaultLimit" : "1m"}, "memory" : {"maxLimit": "1G", "defaultRequest" : "1G", "defaultLimit" : "1G", "ignoreValues": true}, "ignoreImages": ["image:latest"]}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":false') -ne 0 ]
   [ $(expr "$output" : '.*patch.*') -eq 0 ]
 }
