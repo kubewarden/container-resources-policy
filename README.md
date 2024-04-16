@@ -55,6 +55,13 @@ the `defaultRequest`, `defaultLimit`, and `maxLimit` fields, if set, will be
 ignored. Additionally, `ignoreValues` default value is `false`, so it's
 recommended to only provide it when you want to set it to `true`.
 
+> [!NOTE]
+> The admission request review evaluated by the policy could be mutated by
+> another admission controller, like the LimitRange admission controller. This
+> means that the policy could accept a resource that at first looks invalid, but
+> that is later mutated by another admission controller to be valid. For example,
+> LimitRange will set the default request values if they are not set.
+
 Any container that uses an image that matches an entry in this list will be excluded
 from enforcement.
 
