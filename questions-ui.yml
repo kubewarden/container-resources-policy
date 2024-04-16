@@ -17,6 +17,14 @@ questions:
   type: map[
   variable: cpu
   subquestions:
+    - default: false
+      group: Settings
+      label: Ignore values
+      title: Ignore values
+      type: boolean
+      variable: cpu.ignoreValues
+      tooltip: >-
+       Skip enforcement of specific values, but ensure that requests and limits are set
     - default: ''
       tooltip: >-
         Defines default minimum CPU requested.
@@ -24,6 +32,7 @@ questions:
       label: Default CPU requested
       type: string
       variable: cpu.defaultRequest
+      show_if: cpu.ignoreValues=false
     - default: ''
       tooltip: >-
         Defines default CPU limit value.
@@ -31,6 +40,7 @@ questions:
       label: Default CPU limit
       type: string
       variable: cpu.defaultLimit
+      show_if: cpu.ignoreValues=false
     - default: ''
       tooltip: >-
         Defines maximum limit value allowed to be set for the CPU resource
@@ -38,6 +48,7 @@ questions:
       label: Max CPU limit allowed
       type: string
       variable: cpu.maxLimit
+      show_if: cpu.ignoreValues=false
 - default: {}
   description: Defines the limit and minimum amount requested for memory resource
   group: Settings
@@ -46,6 +57,14 @@ questions:
   type: map[
   variable: memory
   subquestions:
+    - default: false
+      group: Settings
+      label: Ignore values
+      title: Ignore values
+      type: boolean
+      variable: memory.ignoreValues
+      tooltip: >-
+        Skip enforcement of specific values, but ensure that requests and limits are set
     - default: ''
       tooltip: >-
         Defines default minimum memory requested.
@@ -53,6 +72,7 @@ questions:
       label: Default memory requested
       type: string
       variable: memory.defaultRequest
+      show_if: memory.ignoreValues=false
     - default: ''
       tooltip: >-
         Defines default memory limit value.
@@ -60,6 +80,7 @@ questions:
       label: Default memory limit
       type: string
       variable: memory.defaultLimit
+      show_if: memory.ignoreValues=false
     - default: ''
       tooltip: >-
         Defines maximum limit value allowed to be set for the memory resource
@@ -67,6 +88,7 @@ questions:
       label: Max memory limit allowed
       type: string
       variable: memory.maxLimit
+      show_if: memory.ignoreValues=false
 - default: []
   description: >-
     Configuration used to exclude containers from enforcement
