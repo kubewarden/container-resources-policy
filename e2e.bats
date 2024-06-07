@@ -121,3 +121,40 @@
   [ $(expr "$output" : '.*allowed":false') -ne 0 ]
   [ $(expr "$output" : '.*patch.*') -eq 0 ]
 }
+
+@test "reject containers exceeding the expected CPU range ignoring memory values due missing values" {
+  run kwctl run annotated-policy.wasm -r test_data/pod_exceeding_range.json \
+  	--settings-json '{"cpu": {"maxLimit": "1m", "defaultRequest" : "1m", "defaultLimit" : "1m"}, "memory" : {"ignoreValues": false}, "ignoreImages": ["image:latest"]}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":false') -ne 0 ]
+  [ $(expr "$output" : '.*cpu limit.*exceeds the max allowed value.*') -ne 0 ]
+  [ $(expr "$output" : '.*patch.*') -eq 0 ]
+}
+
+@test "allow containers exceeding the expected CPU range when the resource should be ignore due missing values" {
+  run kwctl run annotated-policy.wasm -r test_data/pod_exceeding_cpu_range.json \
+  	--settings-json '{"cpu": {"ignoreValues":false}, "memory" : {"maxLimit": "1Gi", "defaultRequest" : "1Gi", "defaultLimit" : "1Gi", "ignoreValues":false}, "ignoreImages": ["image:latest"]}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+  [ $(expr "$output" : '.*patch.*') -eq 0 ]
+}
+
+@test "allow containers exceeding the expected memory range when the resource should be ignore due missing values" {
+  run kwctl run annotated-policy.wasm -r test_data/pod_exceeding_memory_range.json \
+  	--settings-json '{"cpu": {"maxLimit": "1m", "defaultRequest" : "1m", "defaultLimit" : "1m", "ignoreVaues": false}, "memory" : {"ignoreValues":false}, "ignoreImages": ["image:latest"]}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+  [ $(expr "$output" : '.*patch.*') -eq 0 ]
+}
+
+@test "invalid settings when both resources have empty values" {
+  run kwctl run annotated-policy.wasm -r test_data/pod_within_range.json \
+  	--settings-json '{"cpu": {"ignoreVaues": false}, "memory" : {"ignoreValues":false}, "ignoreImages": ["image:latest"]}'
+
+  [ "$status" -ne 0 ]
+  [ $(expr "$output" : '.*invalid cpu settings.*') -ne 0 ]
+  [ $(expr "$output" : '.*invalid memory settings.*') -ne 0 ]
+}

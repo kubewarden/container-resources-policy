@@ -30,7 +30,8 @@ ignoreImages: ["ghcr.io/foo/bar:1.23", "myimage", "otherimages:v1"]
 
 Users can skip the optional parts of the configuration, but an empty configuration is not
 allowed. Thus, at least one of the configurations,  `cpu`, or `memory` should
-be defined including all their sub fields.  All CPU and memory configuration
+be defined. In other words, users can only remove or keep the values empty for a single
+resource configuration. But not for both. All CPU and memory configuration
 should be expressed using the [quantity
 definitions](https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/quantity/)
 of Kubernetes.
