@@ -23,18 +23,24 @@ type Settings struct {
 	IgnoreImages []string               `json:"ignoreImages,omitempty"`
 }
 
+type AllValuesAreZeroError struct{}
+
+func (e AllValuesAreZeroError) Error() string {
+	return "all the quantities must be defined"
+}
+
 func (s *Settings) shouldIgnoreCpuValues() bool {
-	return s.Cpu != nil && s.Cpu.IgnoreValues
+	return s.Cpu != nil && (s.Cpu.IgnoreValues || (!s.Cpu.IgnoreValues && s.Cpu.allValuesAreZero()))
 }
 
 func (s *Settings) shouldIgnoreMemoryValues() bool {
-	return s.Memory != nil && s.Memory.IgnoreValues
+	return s.Memory != nil && (s.Memory.IgnoreValues || (!s.Memory.IgnoreValues && s.Memory.allValuesAreZero()))
 }
 
 func (r *ResourceConfiguration) valid() error {
 
-	if r.MaxLimit.IsZero() && r.DefaultLimit.IsZero() && r.DefaultRequest.IsZero() && !r.IgnoreValues {
-		return fmt.Errorf("all the quantities must be defined")
+	if r.allValuesAreZero() && !r.IgnoreValues {
+		return AllValuesAreZeroError{}
 	}
 
 	if r.MaxLimit.Cmp(r.DefaultLimit) < 0 ||
@@ -43,6 +49,10 @@ func (r *ResourceConfiguration) valid() error {
 	}
 
 	return nil
+}
+
+func (r *ResourceConfiguration) allValuesAreZero() bool {
+	return r.MaxLimit.IsZero() && r.DefaultLimit.IsZero() && r.DefaultRequest.IsZero()
 }
 
 func (s *Settings) Valid() error {
@@ -63,6 +73,10 @@ func (s *Settings) Valid() error {
 		}
 	}
 	if cpuError != nil || memoryError != nil {
+		// user want to validate only one type of resource. The other one should be ignored
+		if (cpuError == nil && errors.Is(memoryError, AllValuesAreZeroError{})) || (memoryError == nil && errors.Is(cpuError, AllValuesAreZeroError{})) { 
+			return  nil
+		}
 		return errors.Join(cpuError, memoryError)
 	}
 	return nil
