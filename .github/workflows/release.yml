@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Install dependencies
         uses: kubewarden/github-actions/policy-gh-action-dependencies@v3.1.20
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           # until https://github.com/actions/checkout/pull/579 is released
           fetch-depth: 0
