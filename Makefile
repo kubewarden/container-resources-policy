@@ -1,14 +1,6 @@
 SOURCE_FILES := $(shell find . -type f -name '*.go')
 VERSION := $(shell git describe | cut -c2-)
-
-# We cannot use the official tinygo container image until
-# this issue is closed: https://github.com/tinygo-org/tinygo/issues/3501
-CONTAINER_IMAGE = ghcr.io/kubewarden/tinygo/tinygo-dev:0.31.1-multi3_fix
-
-# TODO: drop this once we can use the official tinygo container image
-# see comment from above
-build-container:
-	DOCKER_BUILDKIT=1 docker build . -t $(CONTAINER_IMAGE)
+CONTAINER_IMAGE ?= tinygo/tinygo:0.32.0
 
 policy.wasm: $(SOURCE_FILES) go.mod go.sum
 	docker run \
@@ -17,7 +9,7 @@ policy.wasm: $(SOURCE_FILES) go.mod go.sum
 		-v ${PWD}:/src \
 		-w /src \
 		$(CONTAINER_IMAGE) \
-		tinygo build -o policy.wasm -target=wasi -no-debug .
+		tinygo build -o policy.wasm -target=wasip1 -no-debug .
 
 artifacthub-pkg.yml: metadata.yml go.mod
 	$(warning If you are updating the artifacthub-pkg.yml file for a release, \
