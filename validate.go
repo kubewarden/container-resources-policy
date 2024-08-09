@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -66,7 +67,7 @@ func validateContainerResourceRequests(container *corev1.Container, settings *Se
 // We only check for the presence of the limits/requests, not their values.
 // Returns an error if the limits/requests are not set and IgnoreValues is set to true.
 func validateContainerResources(container *corev1.Container, settings *Settings) error {
-	if container.Resources == nil && ( settings.shouldIgnoreCpuValues() || settings.shouldIgnoreMemoryValues()) {
+	if container.Resources == nil && (settings.shouldIgnoreCpuValues() || settings.shouldIgnoreMemoryValues()) {
 		missing := fmt.Sprintf("required Cpu:%t, Memory:%t", settings.shouldIgnoreCpuValues(), settings.shouldIgnoreMemoryValues())
 		return fmt.Errorf("container does not have any resource limits or requests: %s", missing)
 	}
@@ -91,6 +92,26 @@ func validateAndAdjustContainerResourceRequests(container *corev1.Container, set
 		mutated = adjustResourceRequest(container, "cpu", settings.Cpu) || mutated
 	}
 	return mutated
+}
+
+// Ensure that the limit is greater than or equal to the request
+func isResourceLimitGreaterThanRequest(container *corev1.Container, resourceName string) error {
+	if !missingResourceQuantity(container.Resources.Requests, resourceName) && !missingResourceQuantity(container.Resources.Limits, resourceName) {
+		resourceStr := container.Resources.Limits[resourceName]
+		resourceLimit, err := resource.ParseQuantity(string(*resourceStr))
+		if err != nil {
+			return errors.Join(fmt.Errorf("invalid %s limit", resourceName), err)
+		}
+		resourceStr = container.Resources.Requests[resourceName]
+		resourceRequest, err := resource.ParseQuantity(string(*resourceStr))
+		if err != nil {
+			return errors.Join(fmt.Errorf("invalid %s request", resourceName), err)
+		}
+		if resourceLimit.Cmp(resourceRequest) < 0 {
+			return fmt.Errorf("%s limit '%s' is less than the requested '%s' value. Please, change the resource configuration or change the policy settings to accommodate the requested value.", resourceName, resourceLimit.String(), resourceRequest.String())
+		}
+	}
+	return nil
 }
 
 // validateAndAdjustContainerResourceLimit validates the container against the passed resourceConfig // and mutates it if the validation didn't pass.
@@ -164,6 +185,22 @@ func validateAndAdjustContainer(container *corev1.Container, settings *Settings)
 		return false, err
 	}
 	requestsMutation := validateAndAdjustContainerResourceRequests(container, settings)
+	if limitsMutation || requestsMutation {
+		// If the container has been mutated, we need to check that the limit is greater than the request
+		// for both CPU and Memory. If the limit is less than the request, we reject the request.
+		// Because the user need to adjust the resource or change the policy configuration. Otherwise,
+		// Kubernetes will not accept the resource mutated by the policy.
+		errorMsg := "There is an issue after resource limits mutation"
+		if requestsMutation {
+			errorMsg = "There is an issue after resource requests mutation"
+		}
+		if err := isResourceLimitGreaterThanRequest(container, "memory"); err != nil {
+			return false, errors.Join(errors.New(errorMsg), err)
+		}
+		if err := isResourceLimitGreaterThanRequest(container, "cpu"); err != nil {
+			return false, errors.Join(errors.New(errorMsg), err)
+		}
+	}
 	return limitsMutation || requestsMutation, nil
 }
 

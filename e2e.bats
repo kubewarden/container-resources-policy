@@ -63,7 +63,7 @@
 
 @test "mutate deployment with limits but no request resources" {
   run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
-  	--settings-json '{"cpu": {"maxLimit": "4", "defaultRequest" : "2", "defaultLimit" : "2"}, "memory" : {"maxLimit": "4G", "defaultRequest" : "2G", "defaultLimit" : "2G"}}'
+  	--settings-json '{"cpu": {"maxLimit": "4", "defaultRequest" : "1", "defaultLimit" : "1"}, "memory" : {"maxLimit": "4G", "defaultRequest" : "1G", "defaultLimit" : "1G"}}'
 
   [ "$status" -eq 0 ]
   [ $(expr "$output" : '.*allowed":true') -ne 0 ]
@@ -157,4 +157,13 @@
   [ "$status" -ne 0 ]
   [ $(expr "$output" : '.*invalid cpu settings.*') -ne 0 ]
   [ $(expr "$output" : '.*invalid memory settings.*') -ne 0 ]
+}
+
+@test "policy fails when the request resource is greater than the limit set by the policy" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_requests_no_limit_resources_admission_request.json \
+  	--settings-json '{"cpu": {"maxLimit": 2, "defaultRequest": 1, "defaultLimit": 1, "ignoreValues":false}, "memory" : {"maxLimit": "1Gi", "defaultRequest" : "200Mi", "defaultLimit" : "200Mi", "ignoreValues":false}, "ignoreImages": ["image:latest"]}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":false') -ne 0 ]
+  [ $(expr "$output" : ".*memory limit '200Mi' is less than the requested '250Mi' value.*") -ne 0 ]
 }
