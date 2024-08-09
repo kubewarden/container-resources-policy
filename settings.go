@@ -74,8 +74,8 @@ func (s *Settings) Valid() error {
 	}
 	if cpuError != nil || memoryError != nil {
 		// user want to validate only one type of resource. The other one should be ignored
-		if (cpuError == nil && errors.Is(memoryError, AllValuesAreZeroError{})) || (memoryError == nil && errors.Is(cpuError, AllValuesAreZeroError{})) { 
-			return  nil
+		if (cpuError == nil && errors.Is(memoryError, AllValuesAreZeroError{})) || (memoryError == nil && errors.Is(cpuError, AllValuesAreZeroError{})) {
+			return nil
 		}
 		return errors.Join(cpuError, memoryError)
 	}

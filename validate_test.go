@@ -81,17 +81,18 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					"memory": &oneGiMemoryQuantity,
 				},
 			}, true, ""},
-		{"no cpu limit", corev1.Container{
-			Resources: &corev1.ResourceRequirements{
-				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"memory": &oneGiMemoryQuantity,
-				},
-				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"cpu":    &oneCoreCpuQuantity,
-					"memory": &oneGiMemoryQuantity,
+		{"no cpu limit",
+			corev1.Container{
+				Resources: &corev1.ResourceRequirements{
+					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"memory": &oneGiMemoryQuantity,
+					},
+					Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu":    &oneCoreCpuQuantity,
+						"memory": &oneGiMemoryQuantity,
+					},
 				},
 			},
-		},
 
 			Settings{
 				Cpu: &ResourceConfiguration{
@@ -359,21 +360,21 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 				MaxLimit:       oneCore,
 			},
 			Memory: &ResourceConfiguration{
-				IgnoreValues: true,
+				IgnoreValues:   true,
 				DefaultLimit:   oneGi,
 				DefaultRequest: oneGi,
 				MaxLimit:       oneGi,
 			},
 		}, &corev1.ResourceRequirements{
-				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"memory": &twoGiMemoryQuantity,
-					"cpu":    &twoCoreCpuQuantity,
-				},
-				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"memory": &twoGiMemoryQuantity,
-					"cpu":    &twoCoreCpuQuantity,
-				},
-		}, false,  "cpu limit '2' exceeds the max allowed value '1'"},
+			Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"memory": &twoGiMemoryQuantity,
+				"cpu":    &twoCoreCpuQuantity,
+			},
+			Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"memory": &twoGiMemoryQuantity,
+				"cpu":    &twoCoreCpuQuantity,
+			},
+		}, false, "cpu limit '2' exceeds the max allowed value '1'"},
 		{"memory exceeds limit while ignore cpu values", corev1.Container{
 			Resources: &corev1.ResourceRequirements{
 				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
@@ -387,7 +388,7 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 			},
 		}, Settings{
 			Cpu: &ResourceConfiguration{
-				IgnoreValues: true,
+				IgnoreValues:   true,
 				DefaultLimit:   oneCore,
 				DefaultRequest: oneCore,
 				MaxLimit:       oneCore,
@@ -398,15 +399,85 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 				MaxLimit:       oneGi,
 			},
 		}, &corev1.ResourceRequirements{
+			Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"memory": &twoGiMemoryQuantity,
+				"cpu":    &twoCoreCpuQuantity,
+			},
+			Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"memory": &twoGiMemoryQuantity,
+				"cpu":    &twoCoreCpuQuantity,
+			},
+		}, false, "memory limit '2Gi' exceeds the max allowed value '1Gi'"},
+		{"no memory limit and request greater then the default limit value",
+			corev1.Container{
+				Resources: &corev1.ResourceRequirements{
+					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu": &oneCoreCpuQuantity,
+					},
+					Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu":    &oneCoreCpuQuantity,
+						"memory": &twoGiMemoryQuantity,
+					},
+				},
+			},
+
+			Settings{
+				Cpu: &ResourceConfiguration{
+					DefaultLimit:   oneCore,
+					DefaultRequest: oneCore,
+					MaxLimit:       oneCore,
+				},
+				Memory: &ResourceConfiguration{
+					DefaultLimit:   oneGi,
+					DefaultRequest: oneGi,
+					MaxLimit:       oneGi,
+				},
+				IgnoreImages: []string{},
+			}, &corev1.ResourceRequirements{
 				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"memory": &twoGiMemoryQuantity,
-					"cpu":    &twoCoreCpuQuantity,
+					"cpu":    &oneCoreCpuQuantity,
+					"memory": &oneGiMemoryQuantity,
 				},
 				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu":    &oneCoreCpuQuantity,
 					"memory": &twoGiMemoryQuantity,
-					"cpu":    &twoCoreCpuQuantity,
 				},
-		}, false, "memory limit '2Gi' exceeds the max allowed value '1Gi'"},
+			}, false, "memory limit '1Gi' is less than the requested '2Gi' value"},
+		{"no cpu limit and request greater then the default limit value",
+			corev1.Container{
+				Resources: &corev1.ResourceRequirements{
+					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"memory": &oneGiMemoryQuantity,
+					},
+					Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu":    &twoCoreCpuQuantity,
+						"memory": &oneGiMemoryQuantity,
+					},
+				},
+			},
+
+			Settings{
+				Cpu: &ResourceConfiguration{
+					DefaultLimit:   oneCore,
+					DefaultRequest: oneCore,
+					MaxLimit:       oneCore,
+				},
+				Memory: &ResourceConfiguration{
+					DefaultLimit:   oneGi,
+					DefaultRequest: oneGi,
+					MaxLimit:       oneGi,
+				},
+				IgnoreImages: []string{},
+			}, &corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"memory": &oneGiMemoryQuantity,
+					"cpu":    &oneCoreCpuQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu":    &twoCoreCpuQuantity,
+					"memory": &oneGiMemoryQuantity,
+				},
+			}, false, "cpu limit '1' is less than the requested '2' value"},
 	}
 
 	for _, test := range tests {
@@ -420,15 +491,14 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					t.Fatalf("expected error message with string '%s'. But no error has been returned", test.expectedErrorMsg)
 				}
 				if !strings.Contains(err.Error(), test.expectedErrorMsg) {
-					t.Errorf("invalid error message. Expected the string '%s' in the error. Got '%s'", test.expectedErrorMsg, err.Error())
+					t.Fatalf("invalid error message. Expected the string '%s' in the error. Got '%s'", test.expectedErrorMsg, err.Error())
 				}
 			}
 			if mutated != test.shouldMutate {
-				t.Errorf("validation function does not report mutation flag correctly. Got: %t, expected: %t", mutated, test.shouldMutate)
+				t.Fatalf("validation function does not report mutation flag correctly. Got: %t, expected: %t", mutated, test.shouldMutate)
 			}
 			if diff := cmp.Diff(test.container.Resources, test.expectedResouceLimits); diff != "" {
-				t.Logf("%+v", test.container.Resources)
-				t.Error(diff)
+				t.Fatalf(diff)
 			}
 		})
 	}
