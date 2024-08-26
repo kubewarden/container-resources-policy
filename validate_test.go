@@ -20,7 +20,7 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 	twoGi := resource.MustParse("2Gi")
 	twoCoreCpuQuantity := apimachinery_pkg_api_resource.Quantity("2")
 	twoGiMemoryQuantity := apimachinery_pkg_api_resource.Quantity("2Gi")
-	var tests = []struct {
+	tests := []struct {
 		name                  string
 		container             corev1.Container
 		settings              Settings
@@ -28,7 +28,9 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 		shouldMutate          bool
 		expectedErrorMsg      string
 	}{
-		{"no resources requests and limits defined", corev1.Container{},
+		{
+			"no resources requests and limits defined",
+			corev1.Container{},
 			Settings{
 				Cpu: &ResourceConfiguration{
 					DefaultRequest: oneCore,
@@ -39,7 +41,8 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					DefaultLimit:   oneGi,
 				},
 				IgnoreImages: []string{},
-			}, &corev1.ResourceRequirements{
+			},
+			&corev1.ResourceRequirements{
 				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
@@ -48,18 +51,21 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
 				},
-			}, true, ""},
-		{"no memory limit", corev1.Container{
-			Resources: &corev1.ResourceRequirements{
-				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"cpu": &oneCoreCpuQuantity,
-				},
-				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"cpu":    &oneCoreCpuQuantity,
-					"memory": &oneGiMemoryQuantity,
+			}, true, "",
+		},
+		{
+			"no memory limit",
+			corev1.Container{
+				Resources: &corev1.ResourceRequirements{
+					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu": &oneCoreCpuQuantity,
+					},
+					Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu":    &oneCoreCpuQuantity,
+						"memory": &oneGiMemoryQuantity,
+					},
 				},
 			},
-		},
 			Settings{
 				Cpu: &ResourceConfiguration{
 					DefaultLimit:   oneCore,
@@ -71,7 +77,9 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					DefaultRequest: oneGi,
 					MaxLimit:       oneGi,
 				},
-				IgnoreImages: []string{}}, &corev1.ResourceRequirements{
+				IgnoreImages: []string{},
+			},
+			&corev1.ResourceRequirements{
 				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
@@ -80,8 +88,10 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
 				},
-			}, true, ""},
-		{"no cpu limit",
+			}, true, "",
+		},
+		{
+			"no cpu limit",
 			corev1.Container{
 				Resources: &corev1.ResourceRequirements{
 					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
@@ -106,7 +116,8 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					MaxLimit:       oneGi,
 				},
 				IgnoreImages: []string{},
-			}, &corev1.ResourceRequirements{
+			},
+			&corev1.ResourceRequirements{
 				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
@@ -115,19 +126,22 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
 				},
-			}, true, ""},
-		{"all limits within the expected range", corev1.Container{
-			Resources: &corev1.ResourceRequirements{
-				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"cpu":    &oneCoreCpuQuantity,
-					"memory": &oneGiMemoryQuantity,
-				},
-				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"cpu":    &oneCoreCpuQuantity,
-					"memory": &oneGiMemoryQuantity,
+			}, true, "",
+		},
+		{
+			"all limits within the expected range",
+			corev1.Container{
+				Resources: &corev1.ResourceRequirements{
+					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu":    &oneCoreCpuQuantity,
+						"memory": &oneGiMemoryQuantity,
+					},
+					Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu":    &oneCoreCpuQuantity,
+						"memory": &oneGiMemoryQuantity,
+					},
 				},
 			},
-		},
 			Settings{
 				Cpu: &ResourceConfiguration{
 					MaxLimit:       twoCore,
@@ -139,7 +153,8 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					DefaultLimit:   twoGi,
 					DefaultRequest: twoGi,
 				},
-			}, &corev1.ResourceRequirements{
+			},
+			&corev1.ResourceRequirements{
 				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
@@ -148,7 +163,8 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
 				},
-			}, false, ""},
+			}, false, "",
+		},
 		{"cpu limit exceeding the expected range", corev1.Container{
 			Resources: &corev1.ResourceRequirements{
 				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
@@ -208,17 +224,19 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 			Requests: make(map[string]*apimachinery_pkg_api_resource.Quantity),
 		}, false, "memory limit '2Gi' exceeds the max allowed value '1Gi'"},
 
-		{"no memory request", corev1.Container{
-			Resources: &corev1.ResourceRequirements{
-				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"cpu":    &oneCoreCpuQuantity,
-					"memory": &oneGiMemoryQuantity,
-				},
-				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"cpu": &oneCoreCpuQuantity,
+		{
+			"no memory request",
+			corev1.Container{
+				Resources: &corev1.ResourceRequirements{
+					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu":    &oneCoreCpuQuantity,
+						"memory": &oneGiMemoryQuantity,
+					},
+					Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu": &oneCoreCpuQuantity,
+					},
 				},
 			},
-		},
 			Settings{
 				Cpu: &ResourceConfiguration{
 					DefaultLimit:   oneCore,
@@ -230,7 +248,9 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					DefaultRequest: oneGi,
 					MaxLimit:       oneGi,
 				},
-				IgnoreImages: []string{}}, &corev1.ResourceRequirements{
+				IgnoreImages: []string{},
+			},
+			&corev1.ResourceRequirements{
 				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
@@ -239,18 +259,21 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
 				},
-			}, true, ""},
-		{"no cpu request", corev1.Container{
-			Resources: &corev1.ResourceRequirements{
-				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"cpu":    &oneCoreCpuQuantity,
-					"memory": &oneGiMemoryQuantity,
-				},
-				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"memory": &oneGiMemoryQuantity,
+			}, true, "",
+		},
+		{
+			"no cpu request",
+			corev1.Container{
+				Resources: &corev1.ResourceRequirements{
+					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu":    &oneCoreCpuQuantity,
+						"memory": &oneGiMemoryQuantity,
+					},
+					Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"memory": &oneGiMemoryQuantity,
+					},
 				},
 			},
-		},
 
 			Settings{
 				Cpu: &ResourceConfiguration{
@@ -264,7 +287,8 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					MaxLimit:       oneGi,
 				},
 				IgnoreImages: []string{},
-			}, &corev1.ResourceRequirements{
+			},
+			&corev1.ResourceRequirements{
 				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
@@ -273,19 +297,23 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
 				},
-			}, true, ""},
+			}, true, "",
+		},
 
-		{"requested resources are not validated when user define them", corev1.Container{
-			Resources: &corev1.ResourceRequirements{
-				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"cpu":    &oneCoreCpuQuantity,
-					"memory": &oneGiMemoryQuantity,
+		{
+			"requested resources are not validated when user define them",
+			corev1.Container{
+				Resources: &corev1.ResourceRequirements{
+					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu":    &oneCoreCpuQuantity,
+						"memory": &oneGiMemoryQuantity,
+					},
+					Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu":    &twoCoreCpuQuantity,
+						"memory": &twoGiMemoryQuantity,
+					},
 				},
-				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"cpu":    &twoCoreCpuQuantity,
-					"memory": &twoGiMemoryQuantity,
-				},
-			}},
+			},
 			Settings{
 				Cpu: &ResourceConfiguration{
 					DefaultLimit:   oneCore,
@@ -298,7 +326,8 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					MaxLimit:       oneGi,
 				},
 				IgnoreImages: []string{},
-			}, &corev1.ResourceRequirements{
+			},
+			&corev1.ResourceRequirements{
 				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
@@ -307,18 +336,22 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					"cpu":    &twoCoreCpuQuantity,
 					"memory": &twoGiMemoryQuantity,
 				},
-			}, false, ""},
-		{"resources with nil limits and requests", corev1.Container{
-			Resources: &corev1.ResourceRequirements{
-				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"cpu":    nil,
-					"memory": nil,
+			}, false, "",
+		},
+		{
+			"resources with nil limits and requests",
+			corev1.Container{
+				Resources: &corev1.ResourceRequirements{
+					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu":    nil,
+						"memory": nil,
+					},
+					Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu":    nil,
+						"memory": nil,
+					},
 				},
-				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"cpu":    nil,
-					"memory": nil,
-				},
-			}},
+			},
 			Settings{
 				Cpu: &ResourceConfiguration{
 					DefaultLimit:   oneCore,
@@ -331,7 +364,8 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					MaxLimit:       oneGi,
 				},
 				IgnoreImages: []string{},
-			}, &corev1.ResourceRequirements{
+			},
+			&corev1.ResourceRequirements{
 				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
@@ -340,7 +374,8 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
 				},
-			}, true, ""},
+			}, true, "",
+		},
 		{"cpu exceeds limit while ignore memory values", corev1.Container{
 			Image: "image1:latest",
 			Resources: &corev1.ResourceRequirements{
@@ -408,7 +443,8 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 				"cpu":    &twoCoreCpuQuantity,
 			},
 		}, false, "memory limit '2Gi' exceeds the max allowed value '1Gi'"},
-		{"no memory limit and request greater then the default limit value",
+		{
+			"no memory limit and request greater then the default limit value",
 			corev1.Container{
 				Resources: &corev1.ResourceRequirements{
 					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
@@ -433,7 +469,8 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					MaxLimit:       oneGi,
 				},
 				IgnoreImages: []string{},
-			}, &corev1.ResourceRequirements{
+			},
+			&corev1.ResourceRequirements{
 				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
@@ -442,8 +479,10 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &twoGiMemoryQuantity,
 				},
-			}, false, "memory limit '1Gi' is less than the requested '2Gi' value"},
-		{"no cpu limit and request greater then the default limit value",
+			}, false, "memory limit '1Gi' is less than the requested '2Gi' value",
+		},
+		{
+			"no cpu limit and request greater then the default limit value",
 			corev1.Container{
 				Resources: &corev1.ResourceRequirements{
 					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
@@ -468,7 +507,8 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					MaxLimit:       oneGi,
 				},
 				IgnoreImages: []string{},
-			}, &corev1.ResourceRequirements{
+			},
+			&corev1.ResourceRequirements{
 				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
 					"memory": &oneGiMemoryQuantity,
 					"cpu":    &oneCoreCpuQuantity,
@@ -477,7 +517,8 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 					"cpu":    &twoCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
 				},
-			}, false, "cpu limit '1' is less than the requested '2' value"},
+			}, false, "cpu limit '1' is less than the requested '2' value",
+		},
 	}
 
 	for _, test := range tests {
@@ -498,7 +539,7 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 				t.Fatalf("validation function does not report mutation flag correctly. Got: %t, expected: %t", mutated, test.shouldMutate)
 			}
 			if diff := cmp.Diff(test.container.Resources, test.expectedResouceLimits); diff != "" {
-				t.Fatalf(diff)
+				t.Fatalf("%s", diff)
 			}
 		})
 	}
@@ -510,27 +551,28 @@ func TestIgroreValues(t *testing.T) {
 	oneCoreCpuQuantity := apimachinery_pkg_api_resource.Quantity("1")
 	oneGiMemoryQuantity := apimachinery_pkg_api_resource.Quantity("1Gi")
 	twoCoreCpuQuantity := apimachinery_pkg_api_resource.Quantity("2")
-	var tests = []struct {
+	tests := []struct {
 		name                  string
 		container             corev1.Container
 		settings              Settings
 		expectedResouceLimits *corev1.ResourceRequirements
 		expectedErrorMsg      string
 	}{
-
-		{"memory resources requests and limits defined and ignore cpu", corev1.Container{
-			Image: "image1:latest",
-			Resources: &corev1.ResourceRequirements{
-				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"cpu":    &oneCoreCpuQuantity,
-					"memory": &oneGiMemoryQuantity,
-				},
-				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
-					"cpu":    &oneCoreCpuQuantity,
-					"memory": &oneGiMemoryQuantity,
+		{
+			"memory resources requests and limits defined and ignore cpu",
+			corev1.Container{
+				Image: "image1:latest",
+				Resources: &corev1.ResourceRequirements{
+					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu":    &oneCoreCpuQuantity,
+						"memory": &oneGiMemoryQuantity,
+					},
+					Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu":    &oneCoreCpuQuantity,
+						"memory": &oneGiMemoryQuantity,
+					},
 				},
 			},
-		},
 			Settings{
 				Cpu: &ResourceConfiguration{
 					IgnoreValues: true,
@@ -541,7 +583,8 @@ func TestIgroreValues(t *testing.T) {
 					MaxLimit:       oneGi,
 				},
 				IgnoreImages: []string{"image1:latest"},
-			}, &corev1.ResourceRequirements{
+			},
+			&corev1.ResourceRequirements{
 				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
@@ -550,7 +593,8 @@ func TestIgroreValues(t *testing.T) {
 					"cpu":    &oneCoreCpuQuantity,
 					"memory": &oneGiMemoryQuantity,
 				},
-			}, ""},
+			}, "",
+		},
 		{"cpu resources requests and limits defined and ignore memory", corev1.Container{
 			Image: "image1:latest",
 			Resources: &corev1.ResourceRequirements{
@@ -583,7 +627,9 @@ func TestIgroreValues(t *testing.T) {
 				"memory": &oneGiMemoryQuantity,
 			},
 		}, ""},
-		{"container with no resources defined and ignore values", corev1.Container{},
+		{
+			"container with no resources defined and ignore values",
+			corev1.Container{},
 			Settings{
 				Cpu: &ResourceConfiguration{
 					IgnoreValues: true,
@@ -591,8 +637,10 @@ func TestIgroreValues(t *testing.T) {
 				Memory: &ResourceConfiguration{
 					IgnoreValues: true,
 				},
-			}, &corev1.ResourceRequirements{},
-			"container does not have any resource limits"},
+			},
+			&corev1.ResourceRequirements{},
+			"container does not have any resource limits",
+		},
 		{"container with missing cpu values and ignore cpu values", corev1.Container{
 			Image: "image1:latest",
 			Resources: &corev1.ResourceRequirements{
@@ -745,7 +793,6 @@ func TestIgroreValues(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestIgnoreImageSettings(t *testing.T) {
@@ -783,7 +830,8 @@ func TestIgnoreImageSettings(t *testing.T) {
 			DefaultLimit:   oneGi,
 			DefaultRequest: oneGi,
 		},
-		IgnoreImages: []string{"image1:latest"}}
+		IgnoreImages: []string{"image1:latest"},
+	}
 	podSpec := &corev1.PodSpec{
 		Containers: []*corev1.Container{&container1, &container2, &container3},
 	}
@@ -834,7 +882,6 @@ func TestIgnoreImageSettings(t *testing.T) {
 	if diff := cmp.Diff(expectedPodSpec, podSpec); diff != "" {
 		t.Errorf("invalid pod spec:\n %s", diff)
 	}
-
 }
 
 func TestIgnoreImageWithNoTags(t *testing.T) {
@@ -872,7 +919,8 @@ func TestIgnoreImageWithNoTags(t *testing.T) {
 			DefaultLimit:   oneGi,
 			DefaultRequest: oneGi,
 		},
-		IgnoreImages: []string{"othersimage:*"}}
+		IgnoreImages: []string{"othersimage:*"},
+	}
 	podSpec := &corev1.PodSpec{
 		Containers: []*corev1.Container{&container1, &container2, &container3},
 	}
@@ -917,12 +965,10 @@ func TestIgnoreImageWithNoTags(t *testing.T) {
 	if diff := cmp.Diff(expectedPodSpec, podSpec); diff != "" {
 		t.Errorf("invalid pod spec:\n %s", diff)
 	}
-
 }
 
 func TestImageComparison(t *testing.T) {
-
-	var tests = []struct {
+	tests := []struct {
 		image        string
 		ignoreImages []string
 		shouldSkip   bool
@@ -960,5 +1006,4 @@ func TestImageComparison(t *testing.T) {
 			}
 		})
 	}
-
 }
