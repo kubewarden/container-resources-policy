@@ -165,5 +165,5 @@
 
   [ "$status" -eq 0 ]
   [ $(expr "$output" : '.*allowed":false') -ne 0 ]
-  [ $(expr "$output" : ".*memory limit '200Mi' is less than the requested '250Mi' value.*") -ne 0 ]
+  [ $(expr "$output" : ".*memory limit '200' is less than the requested '250Mi' value.*") -ne 0 ]
 }
