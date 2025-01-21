@@ -167,3 +167,28 @@
   [ $(expr "$output" : '.*allowed":false') -ne 0 ]
   [ $(expr "$output" : ".*memory limit '200' is less than the requested '250Mi' value.*") -ne 0 ]
 }
+
+@test "policy passes when the request resource is lower than the limit set by the policy" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_requests_no_limit_resources_admission_request.json \
+    --settings-json '{"cpu": {"maxLimit": 2, "defaultRequest": 1, "defaultLimit": 1, "ignoreValues":false}, "memory" : {"maxLimit": "1Gi", "defaultRequest" : "200Mi", "defaultLimit" : "250Mi", "ignoreValues":false}, "ignoreImages": ["image:latest"]}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+}
+
+@test "policy fails when the request resource is greater than the limit set by the policy, in Ki" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_requests_no_limit_resources_admission_request.json \
+    --settings-json '{"cpu": {"maxLimit": 2, "defaultRequest": 1, "defaultLimit": 1, "ignoreValues":false}, "memory" : {"maxLimit": "1Gi", "defaultRequest" : "200Mi", "defaultLimit" : "204800Ki", "ignoreValues":false}, "ignoreImages": ["image:latest"]}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":false') -ne 0 ]
+  [ $(expr "$output" : ".*memory limit '200' is less than the requested '250Mi' value.*") -ne 0 ]
+}
+
+@test "policy passes when the request resource is lower than the limit set by the policy, in Ki" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_requests_no_limit_resources_admission_request.json \
+    --settings-json '{"cpu": {"maxLimit": 2, "defaultRequest": 1, "defaultLimit": 1, "ignoreValues":false}, "memory" : {"maxLimit": "1Gi", "defaultRequest" : "200Mi", "defaultLimit" : "256001Ki", "ignoreValues":false}, "ignoreImages": ["image:latest"]}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+}
