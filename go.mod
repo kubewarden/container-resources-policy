@@ -2,7 +2,7 @@ module github.com/kubewarden/container-resources-policy
 
 go 1.22.0
 
-toolchain go1.23.5
+toolchain go1.23.6
 
 require (
 	github.com/francoispqt/onelog v0.0.0-20190306043706-8c2bb31b10a4
@@ -10,7 +10,7 @@ require (
 	github.com/google/gofuzz v1.2.0
 	github.com/kubewarden/k8s-objects v1.29.0-kw1
 	github.com/kubewarden/policy-sdk-go v0.11.0
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/pflag v1.0.6
 	github.com/wapc/wapc-guest-tinygo v0.3.3
 	gopkg.in/inf.v0 v0.9.1
 )
