@@ -2,11 +2,11 @@ module github.com/kubewarden/container-resources-policy
 
 go 1.22.0
 
-toolchain go1.23.6
+toolchain go1.24.1
 
 require (
 	github.com/francoispqt/onelog v0.0.0-20190306043706-8c2bb31b10a4
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/gofuzz v1.2.0
 	github.com/kubewarden/k8s-objects v1.29.0-kw1
 	github.com/kubewarden/policy-sdk-go v0.11.0
