@@ -165,7 +165,7 @@
 
   [ "$status" -eq 0 ]
   [ $(expr "$output" : '.*allowed":false') -ne 0 ]
-  [ $(expr "$output" : ".*memory limit '200' is less than the requested '250Mi' value.*") -ne 0 ]
+  [ $(expr "$output" : ".*memory limit '200Mi' is less than the requested '250Mi' value.*") -ne 0 ]
 }
 
 @test "policy passes when the request resource is lower than the limit set by the policy" {
@@ -182,7 +182,7 @@
 
   [ "$status" -eq 0 ]
   [ $(expr "$output" : '.*allowed":false') -ne 0 ]
-  [ $(expr "$output" : ".*memory limit '200' is less than the requested '250Mi' value.*") -ne 0 ]
+  [ $(expr "$output" : ".*memory limit '200Mi' is less than the requested '250Mi' value.*") -ne 0 ]
 }
 
 @test "policy passes when the request resource is lower than the limit set by the policy, in Ki" {
