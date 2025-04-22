@@ -272,8 +272,8 @@ func (a infDecAmount) AsScale(scale Scale) (infDecAmount, bool) {
 // either that buffer or a larger buffer and the current exponent of the value. The value is adjusted
 // until the exponent is a multiple of 3 - i.e. 1.1e5 would return "110", 3.
 func (a infDecAmount) AsCanonicalBytes(out []byte) (result []byte, exponent int32) {
-	mantissa := a.Dec.UnscaledBig()
-	exponent = int32(-a.Dec.Scale())
+	mantissa := a.UnscaledBig()
+	exponent = int32(-a.Scale())
 	amount := big.NewInt(0).Set(mantissa)
 	// move all factors of 10 into the exponent for easy reasoning
 	amount, times := removeBigIntFactors(amount, bigTen)
