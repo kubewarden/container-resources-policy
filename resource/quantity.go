@@ -348,10 +348,10 @@ func ParseQuantity(str string) (Quantity, error) {
 	}
 
 	// So that no one but us has to think about suffixes, remove it.
-	if base == 10 {
+	switch base {
+	case 10:
 		amount.SetScale(amount.Scale() + Scale(exponent).infScale())
-	} else if base == 2 {
-		// numericSuffix = 2 ** exponent
+	case 2:
 		numericSuffix := big.NewInt(1).Lsh(bigOne, uint(exponent))
 		ub := amount.UnscaledBig()
 		amount.SetUnscaledBig(ub.Mul(ub, numericSuffix))
@@ -402,11 +402,11 @@ func (q Quantity) DeepCopy() Quantity {
 // the OpenAPI spec of this type.
 //
 // See: https://github.com/kubernetes/kube-openapi/tree/master/pkg/generators
-func (_ Quantity) OpenAPISchemaType() []string { return []string{"string"} }
+func (Quantity) OpenAPISchemaType() []string { return []string{"string"} }
 
 // OpenAPISchemaFormat is used by the kube-openapi generator when constructing
 // the OpenAPI spec of this type.
-func (_ Quantity) OpenAPISchemaFormat() string { return "" }
+func (Quantity) OpenAPISchemaFormat() string { return "" }
 
 // OpenAPIV3OneOfTypes is used by the kube-openapi generator when constructing
 // the OpenAPI v3 spec of this type.
@@ -466,7 +466,7 @@ func (q *Quantity) AsApproximateFloat64() float64 {
 	var exponent int
 	if q.d.Dec != nil {
 		base, _ = big.NewFloat(0).SetInt(q.d.Dec.UnscaledBig()).Float64()
-		exponent = int(-q.d.Dec.Scale())
+		exponent = int(-q.d.Scale())
 	} else {
 		base = float64(q.i.value)
 		exponent = int(q.i.scale)
@@ -519,7 +519,7 @@ func (q *Quantity) AsCanonicalBytes(out []byte) (result []byte, exponent int32) 
 // IsZero returns true if the quantity is equal to zero.
 func (q *Quantity) IsZero() bool {
 	if q.d.Dec != nil {
-		return q.d.Dec.Sign() == 0
+		return q.d.Sign() == 0
 	}
 	return q.i.value == 0
 }
@@ -528,7 +528,7 @@ func (q *Quantity) IsZero() bool {
 // quantity is greater than zero.
 func (q *Quantity) Sign() int {
 	if q.d.Dec != nil {
-		return q.d.Dec.Sign()
+		return q.d.Sign()
 	}
 	return q.i.Sign()
 }
@@ -576,7 +576,7 @@ func (q *Quantity) Add(y Quantity) {
 	} else if q.IsZero() {
 		q.Format = y.Format
 	}
-	q.ToDec().d.Dec.Add(q.d.Dec, y.AsDec())
+	q.ToDec().d.Add(q.d.Dec, y.AsDec())
 }
 
 // Sub subtracts the provided quantity from the current value in place. If the current
@@ -589,7 +589,7 @@ func (q *Quantity) Sub(y Quantity) {
 	if q.d.Dec == nil && y.d.Dec == nil && q.i.Sub(y.i) {
 		return
 	}
-	q.ToDec().d.Dec.Sub(q.d.Dec, y.AsDec())
+	q.ToDec().d.Sub(q.d.Dec, y.AsDec())
 }
 
 // Cmp returns 0 if the quantity is equal to y, -1 if the quantity is less than y, or 1 if the
@@ -605,7 +605,7 @@ func (q *Quantity) Cmp(y Quantity) int {
 // quantity is greater than y.
 func (q *Quantity) CmpInt64(y int64) int {
 	if q.d.Dec != nil {
-		return q.d.Dec.Cmp(inf.NewDec(y, inf.Scale(0)))
+		return q.d.Cmp(inf.NewDec(y, inf.Scale(0)))
 	}
 	return q.i.Cmp(int64Amount{value: y})
 }
@@ -617,7 +617,7 @@ func (q *Quantity) Neg() {
 		q.i.value = -q.i.value
 		return
 	}
-	q.d.Dec.Neg(q.d.Dec)
+	q.d.Neg(q.d.Dec)
 }
 
 // Equal checks equality of two Quantities. This is useful for testing with

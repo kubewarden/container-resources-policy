@@ -108,7 +108,7 @@ func isResourceLimitGreaterThanRequest(container *corev1.Container, resourceName
 			return errors.Join(fmt.Errorf("invalid %s request", resourceName), err)
 		}
 		if resourceLimit.Cmp(resourceRequest) < 0 {
-			return fmt.Errorf("%s limit '%s' is less than the requested '%s' value. Please, change the resource configuration or change the policy settings to accommodate the requested value.", resourceName, resourceLimit.String(), resourceRequest.String())
+			return fmt.Errorf("%s limit '%s' is less than the requested '%s' value. Please, change the resource configuration or change the policy settings to accommodate the requested value", resourceName, resourceLimit.String(), resourceRequest.String())
 		}
 	}
 	return nil

@@ -52,7 +52,6 @@ func decQuantity(i int64, exponent int, format Format) Quantity {
 	return Quantity{d: dec(i, exponent), Format: format}
 }
 
-
 func intQuantity(i int64, exponent Scale, format Format) Quantity {
 	return Quantity{i: int64Amount{value: i, scale: exponent}, Format: format}
 }
@@ -73,7 +72,7 @@ func TestDec(t *testing.T) {
 	}
 
 	for _, item := range table {
-		if e, a := item.expect, item.got.Dec.String(); e != a {
+		if e, a := item.expect, item.got.String(); e != a {
 			t.Errorf("expected %v, got %v", e, a)
 		}
 	}
@@ -105,7 +104,7 @@ func TestBigDec(t *testing.T) {
 	}
 
 	for _, item := range table {
-		if e, a := item.expect, item.got.Dec.String(); e != a {
+		if e, a := item.expect, item.got.String(); e != a {
 			t.Errorf("expected %v, got %v", e, a)
 		}
 	}
@@ -1181,7 +1180,6 @@ func TestAdd(t *testing.T) {
 	}
 }
 
-
 func TestAddSubRoundTrip(t *testing.T) {
 	for k := -10; k <= 10; k++ {
 		q := Quantity{Format: DecimalSI}
@@ -1529,7 +1527,6 @@ func TestQuantityValueSet(t *testing.T) {
 	q := QuantityValue{}
 
 	if err := q.Set("invalid"); err == nil {
-
 		t.Error("'invalid' did not trigger a parse error")
 	}
 
