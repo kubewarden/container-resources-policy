@@ -9,7 +9,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/gofuzz v1.2.0
 	github.com/kubewarden/k8s-objects v1.29.0-kw1
-	github.com/kubewarden/policy-sdk-go v0.11.1
+	github.com/kubewarden/policy-sdk-go v0.12.0
 	github.com/spf13/pflag v1.0.6
 	github.com/wapc/wapc-guest-tinygo v0.3.3
 	gopkg.in/inf.v0 v0.9.1
