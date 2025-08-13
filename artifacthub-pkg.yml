@@ -4,32 +4,32 @@
 #
 # This config can be saved to its default location with:
 #   kwctl scaffold artifacthub > artifacthub-pkg.yml 
-version: 1.0.3
+version: 1.0.4
 name: container-resources
 displayName: Container Resources
-createdAt: 2025-07-14T10:23:40.017174661Z
+createdAt: 2025-08-13T14:22:07.056470995Z
 description: Policy is designed to enforce constraints on the resource requirements of Kubernetes containers
 license: Apache-2.0
 homeURL: https://github.com/kubewarden/container-resources-policy
 containersImages:
 - name: policy
-  image: ghcr.io/kubewarden/policies/container-resources:v1.0.3
+  image: ghcr.io/kubewarden/policies/container-resources:v1.0.4
 keywords:
 - container
 - resources
 links:
 - name: policy
-  url: https://github.com/kubewarden/container-resources-policy/releases/download/v1.0.3/policy.wasm
+  url: https://github.com/kubewarden/container-resources-policy/releases/download/v1.0.4/policy.wasm
 - name: source
   url: https://github.com/kubewarden/container-resources-policy
 install: |
   The policy can be obtained using [`kwctl`](https://github.com/kubewarden/kwctl):
   ```console
-  kwctl pull ghcr.io/kubewarden/policies/container-resources:v1.0.3
+  kwctl pull ghcr.io/kubewarden/policies/container-resources:v1.0.4
   ```
   Then, generate the policy manifest and tune it to your liking. For example:
   ```console
-  kwctl scaffold manifest -t ClusterAdmissionPolicy registry://ghcr.io/kubewarden/policies/container-resources:v1.0.3
+  kwctl scaffold manifest -t ClusterAdmissionPolicy registry://ghcr.io/kubewarden/policies/container-resources:v1.0.4
   ```
 maintainers:
 - name: Kubewarden developers
