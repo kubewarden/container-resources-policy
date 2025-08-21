@@ -1,5 +1,5 @@
 SOURCE_FILES := $(shell find . -type f -name '*.go')
-CONTAINER_IMAGE ?= tinygo/tinygo:0.37.0
+CONTAINER_IMAGE ?= tinygo/tinygo:0.39.0
 
 policy.wasm: $(SOURCE_FILES) go.mod go.sum
 	docker run \
