@@ -7,7 +7,8 @@ This policy is designed to enforce constraints on the resource requirements of
 Kubernetes containers. It follows a two-step verification process: initially
 checking whether the container has defined resource requirements, and
 subsequently ensuring that these resources fall within the permissible range
-set by the maximum resource requirements configured in the policy settings.
+set by the minimum and maximum resource requirements configured in the policy
+settings.
 
 ## Configuration
 
@@ -18,11 +19,13 @@ Users can configure the policy using the following parameters in YAML format:
 memory:
   defaultRequest: "100M"
   defaultLimit: "500M"
+  minRequest: "50M"
   maxLimit: "4G"
 # optional
 cpu:
   defaultRequest: 100m
   defaultLimit: 200m
+  minRequest: 50m
   maxLimit: 500m
 # optional
 ignoreImages: ["ghcr.io/foo/bar:1.23", "myimage", "otherimages:v1"]
@@ -50,6 +53,7 @@ cpu:
   defaultRequest: 100m
   defaultLimit: 200m
   maxLimit: 500m
+  minRequest: 50m
 # optional
 ignoreImages: ["ghcr.io/foo/bar:1.23", "myimage", "otherimages:v1"]
 ```
@@ -73,7 +77,7 @@ in order to avoid unexpectedly exempting images from an untrusted repository.
 
 The policy verifies the consistency of the values provided:
 
-- `defaultRequest` must be <= `maxLimit`
+- `defaultRequest` must be >= `minRequest`, <= `maxLimit`
 - `defaultLimit` must be <= `maxLimit`
 
 Full example of policy definition:
@@ -99,6 +103,7 @@ spec:
       defaultRequest: "1G"
       defaultLimit: "1G"
       maxLimit: "4G"
+      minRequest: "500M"
     cpu:
       defaultRequest: 1
       defaultLimit: 1
@@ -113,7 +118,8 @@ The policy skips all the containers that are using an image that is part of the
 mutated.
 
 When the CPU/Memory request is specified:
-No action or check is done against it.
+If the request for CPU/Memory in the container is more than or equal to the
+`minRequest`, the policy accepts. Otherwise it rejects.
 Note: when the requested CPU/Memory is higher than the limit the Pod will not be
 scheduled by Kubernetes (e.g. the approach of the `LimitRange` admission
 controller bundled with Kubernetes).
