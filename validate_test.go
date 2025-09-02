@@ -21,12 +21,12 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 	twoCoreCpuQuantity := apimachinery_pkg_api_resource.Quantity("2")
 	twoGiMemoryQuantity := apimachinery_pkg_api_resource.Quantity("2Gi")
 	tests := []struct {
-		name                  string
-		container             corev1.Container
-		settings              Settings
-		expectedResouceLimits *corev1.ResourceRequirements
-		shouldMutate          bool
-		expectedErrorMsg      string
+		name                        string
+		container                   corev1.Container
+		settings                    Settings
+		expectedResouceRequirements *corev1.ResourceRequirements
+		shouldMutate                bool
+		expectedErrorMsg            string
 	}{
 		{
 			"no resources requests and limits defined",
@@ -538,14 +538,14 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 			if mutated != test.shouldMutate {
 				t.Fatalf("validation function does not report mutation flag correctly. Got: %t, expected: %t", mutated, test.shouldMutate)
 			}
-			if diff := cmp.Diff(test.container.Resources, test.expectedResouceLimits); diff != "" {
+			if diff := cmp.Diff(test.container.Resources, test.expectedResouceRequirements); diff != "" {
 				t.Fatalf("%s", diff)
 			}
 		})
 	}
 }
 
-func TestIgroreValues(t *testing.T) {
+func TestIgnoreValues(t *testing.T) {
 	oneCore := resource.MustParse("1")
 	oneGi := resource.MustParse("1Gi")
 	oneCoreCpuQuantity := apimachinery_pkg_api_resource.Quantity("1")
