@@ -143,7 +143,7 @@
 
 @test "allow containers exceeding the expected memory range when the resource should be ignore due missing values" {
   run kwctl run annotated-policy.wasm -r test_data/pod_exceeding_memory_range.json \
-    --settings-json '{"cpu": {"maxLimit": "1m", "defaultRequest" : "1m", "defaultLimit" : "1m", "ignoreVaues": false}, "memory" : {"ignoreValues":false}, "ignoreImages": ["image:latest"]}'
+    --settings-json '{"cpu": {"maxLimit": "1m", "defaultRequest" : "1m", "defaultLimit" : "1m", "ignoreValues": false}, "memory" : {"ignoreValues":false}, "ignoreImages": ["image:latest"]}'
 
   [ "$status" -eq 0 ]
   [ $(expr "$output" : '.*allowed":true') -ne 0 ]
@@ -152,7 +152,7 @@
 
 @test "invalid settings when both resources have empty values" {
   run kwctl run annotated-policy.wasm -r test_data/pod_within_range.json \
-    --settings-json '{"cpu": {"ignoreVaues": false}, "memory" : {"ignoreValues":false}, "ignoreImages": ["image:latest"]}'
+    --settings-json '{"cpu": {"ignoreValues": false}, "memory" : {"ignoreValues":false}, "ignoreImages": ["image:latest"]}'
 
   [ "$status" -ne 0 ]
   [ $(expr "$output" : '.*invalid cpu settings.*') -ne 0 ]
