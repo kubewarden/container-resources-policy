@@ -779,7 +779,7 @@ func TestIgroreValues(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := validateContainerResources(&test.container, &test.settings)
+			err := validateContainerCheckPresence(&test.container, &test.settings)
 			if err != nil && len(test.expectedErrorMsg) == 0 {
 				t.Fatalf("unexpected error: %q", err)
 			}
