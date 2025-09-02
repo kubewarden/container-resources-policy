@@ -120,7 +120,7 @@ func isResourceLimitGreaterThanRequest(container *corev1.Container, resourceName
 	return nil
 }
 
-// validateAndAdjustContainerResourceLimit validates the container against the
+// validateAndAdjustContainerMaxLimitMinRequest validates the container against the
 // passed resourceConfig and mutates it if the validation didn't pass.
 //
 // When the CPU/Memory limit is not specified: the container is mutated to use
@@ -128,34 +128,57 @@ func isResourceLimitGreaterThanRequest(container *corev1.Container, resourceName
 //
 // When the CPU/Memory limit is specified: the request is accepted if the limit
 // defined by the container is less than or equal to the `maxLimit`
+// and more than or equal to the `minRequest`,
 // or IgnoreValues is true. Otherwise the request is rejected.
 //
 // Returns true when it mutates the container.
-func validateAndAdjustContainerResourceLimit(container *corev1.Container, resourceName string, resourceConfig *ResourceConfiguration) (bool, error) {
+func validateAndAdjustContainerMaxLimitMinRequest(container *corev1.Container, resourceName string, resourceConfig *ResourceConfiguration) (bool, error) {
 	if missingResourceQuantity(container.Resources.Limits, resourceName) {
 		if !resourceConfig.DefaultLimit.IsZero() {
+			// if the container doesn't have a limit, and the settings have a default limit,
+			// mutate and add the default limit
 			newLimit := api_resource.Quantity(resourceConfig.DefaultLimit.String())
 			container.Resources.Limits[resourceName] = &newLimit
 			return true, nil
 		}
-	} else {
-		resourceStr := container.Resources.Limits[resourceName]
-		resourceLimit, err := resource.ParseQuantity(string(*resourceStr))
-		if err != nil {
-			return false, fmt.Errorf("invalid %s limit", resourceName)
+	} else { // the container has a limit
+		if !resourceConfig.MaxLimit.IsZero() {
+			// the settings have a maxLimit, check that the container limit is <= maxLimit
+			resourceLimitStr := container.Resources.Limits[resourceName]
+			resourceLimit, err := resource.ParseQuantity(string(*resourceLimitStr))
+			if err != nil {
+				return false, fmt.Errorf("invalid %s limit", resourceName)
+			}
+			if resourceLimit.Cmp(resourceConfig.MaxLimit) > 0 {
+				return false, fmt.Errorf("%s limit '%s' exceeds the max allowed value '%s'", resourceName, resourceLimit.String(), resourceConfig.MaxLimit.String())
+			}
 		}
+	}
 
-		return false, fmt.Errorf("%s limit '%s' exceeds the max allowed value '%s'", resourceName, resourceLimit.String(), resourceConfig.MaxLimit.String())
+	if !missingResourceQuantity(container.Resources.Requests, resourceName) {
+		if !resourceConfig.MinRequest.IsZero() {
+			// the container has a request,
+			// and the settings have a minRequest, check that the container request is >= minRequest
+			resourceRequestStr := container.Resources.Requests[resourceName]
+			resourceRequest, err := resource.ParseQuantity(string(*resourceRequestStr))
+			if err != nil {
+				return false, fmt.Errorf("invalid %s request", resourceName)
+			}
+			if resourceRequest.Cmp(resourceConfig.MinRequest) < 0 {
+				return false, fmt.Errorf("%s request '%s' doesn't reach the min allowed value '%s'", resourceName, resourceRequest.String(), resourceConfig.MinRequest.String())
+			}
+		}
 	}
 
 	return false, nil
 }
 
 // validateAndAdjustContainerConstraints validates the container for maxLimit,
-// and mutates it when it doesn't pass validation.
+// minRequest, and mutates it when it doesn't pass validation.
 //
 // When the CPU/Memory limit is specified: the request is accepted if the limit
 // defined by the container is less than or equal to the `maxLimit`
+// and more than or equal to the `minRequest`,
 // or IgnoreValues is true. Otherwise the request is rejected.
 //
 // When the CPU/Memory limit is not specified: the container is mutated to use
@@ -166,14 +189,14 @@ func validateAndAdjustContainerConstraints(container *corev1.Container, settings
 	mutated := false
 	if !settings.shouldIgnoreMemoryValues() && settings.Memory != nil {
 		var err error
-		mutated, err = validateAndAdjustContainerResourceLimit(container, "memory", settings.Memory)
+		mutated, err = validateAndAdjustContainerMaxLimitMinRequest(container, "memory", settings.Memory)
 		if err != nil {
 			return false, err
 		}
 	}
 
 	if !settings.shouldIgnoreCpuValues() && settings.Cpu != nil {
-		cpuMutation, err := validateAndAdjustContainerResourceLimit(container, "cpu", settings.Cpu)
+		cpuMutation, err := validateAndAdjustContainerMaxLimitMinRequest(container, "cpu", settings.Cpu)
 		if err != nil {
 			return false, err
 		}
