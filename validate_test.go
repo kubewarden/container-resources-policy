@@ -16,7 +16,7 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 	oneGi := resource.MustParse("1Gi")
 	oneCoreCpuQuantity := apimachinery_pkg_api_resource.Quantity("1")
 	oneGiMemoryQuantity := apimachinery_pkg_api_resource.Quantity("1Gi")
-	twoCore := resource.MustParse("1")
+	twoCore := resource.MustParse("2")
 	twoGi := resource.MustParse("2Gi")
 	twoCoreCpuQuantity := apimachinery_pkg_api_resource.Quantity("2")
 	twoGiMemoryQuantity := apimachinery_pkg_api_resource.Quantity("2Gi")
