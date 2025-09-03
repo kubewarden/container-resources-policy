@@ -16,17 +16,17 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 	oneGi := resource.MustParse("1Gi")
 	oneCoreCpuQuantity := apimachinery_pkg_api_resource.Quantity("1")
 	oneGiMemoryQuantity := apimachinery_pkg_api_resource.Quantity("1Gi")
-	twoCore := resource.MustParse("1")
+	twoCore := resource.MustParse("2")
 	twoGi := resource.MustParse("2Gi")
 	twoCoreCpuQuantity := apimachinery_pkg_api_resource.Quantity("2")
 	twoGiMemoryQuantity := apimachinery_pkg_api_resource.Quantity("2Gi")
 	tests := []struct {
-		name                  string
-		container             corev1.Container
-		settings              Settings
-		expectedResouceLimits *corev1.ResourceRequirements
-		shouldMutate          bool
-		expectedErrorMsg      string
+		name                        string
+		container                   corev1.Container
+		settings                    Settings
+		expectedResouceRequirements *corev1.ResourceRequirements
+		shouldMutate                bool
+		expectedErrorMsg            string
 	}{
 		{
 			"no resources requests and limits defined",
@@ -144,11 +144,13 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 			},
 			Settings{
 				Cpu: &ResourceConfiguration{
+					MinRequest:     oneCore,
 					MaxLimit:       twoCore,
 					DefaultLimit:   twoCore,
 					DefaultRequest: twoCore,
 				},
 				Memory: &ResourceConfiguration{
+					MinRequest:     oneGi,
 					MaxLimit:       twoGi,
 					DefaultLimit:   twoGi,
 					DefaultRequest: twoGi,
@@ -223,6 +225,39 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 			},
 			Requests: make(map[string]*apimachinery_pkg_api_resource.Quantity),
 		}, false, "memory limit '2Gi' exceeds the max allowed value '1Gi'"},
+		{"cpu request not matching min request", corev1.Container{
+			Resources: &corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu":    &twoCoreCpuQuantity,
+					"memory": &oneGiMemoryQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu":    &oneCoreCpuQuantity,
+					"memory": &oneGiMemoryQuantity,
+				},
+			},
+		}, Settings{
+			Cpu: &ResourceConfiguration{
+				DefaultLimit:   twoCore,
+				DefaultRequest: twoCore,
+				MinRequest:     twoCore,
+				MaxLimit:       twoCore,
+			},
+			Memory: &ResourceConfiguration{
+				DefaultLimit:   twoGi,
+				DefaultRequest: twoGi,
+				MaxLimit:       twoGi,
+			},
+		}, &corev1.ResourceRequirements{
+			Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"cpu":    &twoCoreCpuQuantity,
+				"memory": &oneGiMemoryQuantity,
+			},
+			Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+				"cpu":    &oneCoreCpuQuantity,
+				"memory": &oneGiMemoryQuantity,
+			},
+		}, false, "cpu request '1' doesn't reach the min allowed value '2'"},
 
 		{
 			"no memory request",
@@ -538,14 +573,14 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 			if mutated != test.shouldMutate {
 				t.Fatalf("validation function does not report mutation flag correctly. Got: %t, expected: %t", mutated, test.shouldMutate)
 			}
-			if diff := cmp.Diff(test.container.Resources, test.expectedResouceLimits); diff != "" {
+			if diff := cmp.Diff(test.container.Resources, test.expectedResouceRequirements); diff != "" {
 				t.Fatalf("%s", diff)
 			}
 		})
 	}
 }
 
-func TestIgroreValues(t *testing.T) {
+func TestIgnoreValues(t *testing.T) {
 	oneCore := resource.MustParse("1")
 	oneGi := resource.MustParse("1Gi")
 	oneCoreCpuQuantity := apimachinery_pkg_api_resource.Quantity("1")
@@ -779,7 +814,7 @@ func TestIgroreValues(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := validateContainerResources(&test.container, &test.settings)
+			err := validateContainerCheckPresence(&test.container, &test.settings)
 			if err != nil && len(test.expectedErrorMsg) == 0 {
 				t.Fatalf("unexpected error: %q", err)
 			}

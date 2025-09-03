@@ -12,6 +12,7 @@ import (
 
 type ResourceConfiguration struct {
 	MaxLimit       resource.Quantity `json:"maxLimit"`
+	MinRequest     resource.Quantity `json:"minRequest"`
 	DefaultRequest resource.Quantity `json:"defaultRequest"`
 	DefaultLimit   resource.Quantity `json:"defaultLimit"`
 	IgnoreValues   bool              `json:"ignoreValues,omitempty"`
@@ -38,27 +39,36 @@ func (s *Settings) shouldIgnoreMemoryValues() bool {
 }
 
 func (r *ResourceConfiguration) valid() error {
-
 	if r.allValuesAreZero() && !r.IgnoreValues {
 		return AllValuesAreZeroError{}
 	}
 
-	if r.MaxLimit.Cmp(r.DefaultLimit) < 0 ||
-		r.MaxLimit.Cmp(r.DefaultRequest) < 0 {
-		return fmt.Errorf("default values cannot be greater than the max limit")
+	if !r.MaxLimit.IsZero() {
+		if r.MaxLimit.Cmp(r.DefaultLimit) < 0 ||
+			r.MaxLimit.Cmp(r.DefaultRequest) < 0 {
+			return fmt.Errorf("default values cannot be greater than the max limit")
+		}
+	}
+
+	if !r.MinRequest.IsZero() {
+		if r.MinRequest.Cmp(r.DefaultLimit) > 0 ||
+			r.MinRequest.Cmp(r.DefaultRequest) > 0 {
+			return fmt.Errorf("default values cannot be smaller than the min request")
+		}
 	}
 
 	return nil
 }
 
 func (r *ResourceConfiguration) allValuesAreZero() bool {
-	return r.MaxLimit.IsZero() && r.DefaultLimit.IsZero() && r.DefaultRequest.IsZero()
+	return r.MaxLimit.IsZero() && r.DefaultLimit.IsZero() && r.DefaultRequest.IsZero() && r.MinRequest.IsZero()
 }
 
 func (s *Settings) Valid() error {
 	if s.Cpu == nil && s.Memory == nil {
 		return fmt.Errorf("no settings provided. At least one resource limit or request must be verified")
 	}
+
 	var cpuError, memoryError error
 	if s.Cpu != nil {
 		cpuError = s.Cpu.valid()

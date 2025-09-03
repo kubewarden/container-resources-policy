@@ -19,17 +19,16 @@ func missingResourceQuantity(resources map[string]*api_resource.Quantity, resour
 }
 
 func adjustResourceRequest(container *corev1.Container, resourceName string, resourceConfig *ResourceConfiguration) bool {
-	if missingResourceQuantity(container.Resources.Requests, resourceName) {
-		if !resourceConfig.DefaultRequest.IsZero() {
-			newRequest := api_resource.Quantity(resourceConfig.DefaultRequest.String())
-			container.Resources.Requests[resourceName] = &newRequest
-			return true
-		}
+	if missingResourceQuantity(container.Resources.Requests, resourceName) &&
+		!resourceConfig.DefaultRequest.IsZero() {
+		newRequest := api_resource.Quantity(resourceConfig.DefaultRequest.String())
+		container.Resources.Requests[resourceName] = &newRequest
+		return true
 	}
 	return false
 }
 
-func validateContainerResourceLimits(container *corev1.Container, settings *Settings) error {
+func validateContainerCheckPresenceLimits(container *corev1.Container, settings *Settings) error {
 	if container.Resources.Limits == nil && settings.shouldIgnoreCpuValues() && settings.shouldIgnoreMemoryValues() {
 		return fmt.Errorf("container does not have any resource limits")
 	}
@@ -45,7 +44,7 @@ func validateContainerResourceLimits(container *corev1.Container, settings *Sett
 	return nil
 }
 
-func validateContainerResourceRequests(container *corev1.Container, settings *Settings) error {
+func validateContainerCheckPresenceRequests(container *corev1.Container, settings *Settings) error {
 	if container.Resources.Requests == nil && settings.shouldIgnoreCpuValues() && settings.shouldIgnoreMemoryValues() {
 		return fmt.Errorf("container does not have any resource requests")
 	}
@@ -63,26 +62,33 @@ func validateContainerResourceRequests(container *corev1.Container, settings *Se
 	return nil
 }
 
-// If IgnoreValues is set to true, confirm that the respective limits/requests are set.
-// We only check for the presence of the limits/requests, not their values.
-// Returns an error if the limits/requests are not set and IgnoreValues is set to true.
-func validateContainerResources(container *corev1.Container, settings *Settings) error {
+// validateContainerCheckPresence checks for the presence of the
+// limits/requests (not their values) if settings.IgnoreValues is true.
+// Returns an error if the limits/requests are not set and IgnoreValues is set
+// to true, nil otherwise.
+func validateContainerCheckPresence(container *corev1.Container, settings *Settings) error {
 	if container.Resources == nil && (settings.shouldIgnoreCpuValues() || settings.shouldIgnoreMemoryValues()) {
 		missing := fmt.Sprintf("required Cpu:%t, Memory:%t", settings.shouldIgnoreCpuValues(), settings.shouldIgnoreMemoryValues())
 		return fmt.Errorf("container does not have any resource limits or requests: %s", missing)
 	}
-	if err := validateContainerResourceLimits(container, settings); err != nil {
+	if err := validateContainerCheckPresenceLimits(container, settings); err != nil {
 		return err
 	}
-	if err := validateContainerResourceRequests(container, settings); err != nil {
+	if err := validateContainerCheckPresenceRequests(container, settings); err != nil {
 		return err
 	}
 	return nil
 }
 
+// validateAndAdjustContainerResourceRequests mutates the container to add the
+// default request values.
+//
 // When the CPU/Memory request is specified: no action or check is done against it.
-// When the CPU/Memory request is not specified: the policy mutates the container definition, the `defaultRequest` value is used. The policy does not check the consistency of the applied value.
-// Return `true` when the container has been mutated
+// When the CPU/Memory request is not specified: the policy mutates the
+// container and adds the `defaultRequest` value. The policy does
+// not check the consistency of the applied value.
+//
+// Returns `true` when the container has been mutated
 func validateAndAdjustContainerResourceRequests(container *corev1.Container, settings *Settings) bool {
 	mutated := false
 	if settings.Memory != nil {
@@ -114,51 +120,83 @@ func isResourceLimitGreaterThanRequest(container *corev1.Container, resourceName
 	return nil
 }
 
-// validateAndAdjustContainerResourceLimit validates the container against the passed resourceConfig // and mutates it if the validation didn't pass.
+// validateAndAdjustContainerMaxLimitMinRequest validates the container against the
+// passed resourceConfig and mutates it if the validation didn't pass.
+//
+// When the CPU/Memory limit is not specified: the container is mutated to use
+// the `defaultLimit`.
+//
+// When the CPU/Memory limit is specified: the request is accepted if the limit
+// defined by the container is less than or equal to the `maxLimit`
+// and more than or equal to the `minRequest`,
+// or IgnoreValues is true. Otherwise the request is rejected.
+//
 // Returns true when it mutates the container.
-func validateAndAdjustContainerResourceLimit(container *corev1.Container, resourceName string, resourceConfig *ResourceConfiguration) (bool, error) {
+func validateAndAdjustContainerMaxLimitMinRequest(container *corev1.Container, resourceName string, resourceConfig *ResourceConfiguration) (bool, error) {
 	if missingResourceQuantity(container.Resources.Limits, resourceName) {
 		if !resourceConfig.DefaultLimit.IsZero() {
+			// if the container doesn't have a limit, and the settings have a default limit,
+			// mutate and add the default limit
 			newLimit := api_resource.Quantity(resourceConfig.DefaultLimit.String())
 			container.Resources.Limits[resourceName] = &newLimit
 			return true, nil
 		}
-	} else {
-		resourceStr := container.Resources.Limits[resourceName]
-		resourceLimit, err := resource.ParseQuantity(string(*resourceStr))
-		if err != nil {
-			return false, fmt.Errorf("invalid %s limit", resourceName)
-		}
-		if resourceLimit.Cmp(resourceConfig.MaxLimit) > 0 {
-			return false, fmt.Errorf("%s limit '%s' exceeds the max allowed value '%s'", resourceName, resourceLimit.String(), resourceConfig.MaxLimit.String())
+	} else { // the container has a limit
+		if !resourceConfig.MaxLimit.IsZero() {
+			// the settings have a maxLimit, check that the container limit is <= maxLimit
+			resourceLimitStr := container.Resources.Limits[resourceName]
+			resourceLimit, err := resource.ParseQuantity(string(*resourceLimitStr))
+			if err != nil {
+				return false, fmt.Errorf("invalid %s limit", resourceName)
+			}
+			if resourceLimit.Cmp(resourceConfig.MaxLimit) > 0 {
+				return false, fmt.Errorf("%s limit '%s' exceeds the max allowed value '%s'", resourceName, resourceLimit.String(), resourceConfig.MaxLimit.String())
+			}
 		}
 	}
+
+	if !missingResourceQuantity(container.Resources.Requests, resourceName) {
+		if !resourceConfig.MinRequest.IsZero() {
+			// the container has a request,
+			// and the settings have a minRequest, check that the container request is >= minRequest
+			resourceRequestStr := container.Resources.Requests[resourceName]
+			resourceRequest, err := resource.ParseQuantity(string(*resourceRequestStr))
+			if err != nil {
+				return false, fmt.Errorf("invalid %s request", resourceName)
+			}
+			if resourceRequest.Cmp(resourceConfig.MinRequest) < 0 {
+				return false, fmt.Errorf("%s request '%s' doesn't reach the min allowed value '%s'", resourceName, resourceRequest.String(), resourceConfig.MinRequest.String())
+			}
+		}
+	}
+
 	return false, nil
 }
 
-// validateAndAdjustContainerResourceLimits validates the container and mutates
-// it when possible, when it doesn't pass validation.
+// validateAndAdjustContainerConstraints validates the container for maxLimit,
+// minRequest, and mutates it when it doesn't pass validation.
 //
 // When the CPU/Memory limit is specified: the request is accepted if the limit
-// defined by the container is less than or equal to the `maxLimit`, or
-// IgnoreValues is true. Otherwise the request is rejected.
+// defined by the container is less than or equal to the `maxLimit`
+// and more than or equal to the `minRequest`,
+// or IgnoreValues is true. Otherwise the request is rejected.
 //
 // When the CPU/Memory limit is not specified: the container is mutated to use
 // the `defaultLimit`.
 //
 // Return `true` when the container has been mutated.
-func validateAndAdjustContainerResourceLimits(container *corev1.Container, settings *Settings) (bool, error) {
+func validateAndAdjustContainerConstraints(container *corev1.Container, settings *Settings) (bool, error) {
 	mutated := false
 	if !settings.shouldIgnoreMemoryValues() && settings.Memory != nil {
 		var err error
-		mutated, err = validateAndAdjustContainerResourceLimit(container, "memory", settings.Memory)
+		mutated, err = validateAndAdjustContainerMaxLimitMinRequest(container, "memory", settings.Memory)
 		if err != nil {
 			return false, err
 		}
 	}
 
 	if !settings.shouldIgnoreCpuValues() && settings.Cpu != nil {
-		cpuMutation, err := validateAndAdjustContainerResourceLimit(container, "cpu", settings.Cpu)
+		cpuMutation, err := validateAndAdjustContainerMaxLimitMinRequest(container, "cpu", settings.Cpu)
 		if err != nil {
 			return false, err
 		}
@@ -167,6 +205,9 @@ func validateAndAdjustContainerResourceLimits(container *corev1.Container, setti
 	return mutated, nil
 }
 
+// validateAndAdjustContainer validates the container against the settings, and
+// returns true if the passed container has been mutated or an error if the
+// validation fails.
 func validateAndAdjustContainer(container *corev1.Container, settings *Settings) (bool, error) {
 	if container.Resources == nil {
 		container.Resources = &corev1.ResourceRequirements{
@@ -180,16 +221,21 @@ func validateAndAdjustContainer(container *corev1.Container, settings *Settings)
 	if container.Resources.Requests == nil {
 		container.Resources.Requests = make(map[string]*api_resource.Quantity)
 	}
-	limitsMutation, err := validateAndAdjustContainerResourceLimits(container, settings)
+
+	limitsMutation, err := validateAndAdjustContainerConstraints(container, settings)
 	if err != nil {
 		return false, err
 	}
 	requestsMutation := validateAndAdjustContainerResourceRequests(container, settings)
+
 	if limitsMutation || requestsMutation {
-		// If the container has been mutated, we need to check that the limit is greater than the request
-		// for both CPU and Memory. If the limit is less than the request, we reject the request.
-		// Because the user need to adjust the resource or change the policy configuration. Otherwise,
-		// Kubernetes will not accept the resource mutated by the policy.
+		// If the container has been mutated with the default values, we need to
+		// check that the limit is greater than the request for both CPU and
+		// Memory.
+		// If the limit is less than the request, we reject the request. Because
+		// the user need to adjust the resource or change the policy configuration.
+		// Otherwise, Kubernetes will not accept the resource mutated by the
+		// policy.
 		errorMsg := "There is an issue after resource limits mutation"
 		if requestsMutation {
 			errorMsg = "There is an issue after resource requests mutation"
@@ -226,7 +272,7 @@ func validatePodSpec(pod *corev1.PodSpec, settings *Settings) (bool, error) {
 		if shouldSkipContainer(container.Image, settings.IgnoreImages) {
 			continue
 		}
-		if err := validateContainerResources(container, settings); err != nil {
+		if err := validateContainerCheckPresence(container, settings); err != nil {
 			return false, err
 		}
 
@@ -258,18 +304,19 @@ func validate(payload []byte) ([]byte, error) {
 	}
 
 	podSpec, err := kubewarden.ExtractPodSpecFromObject(validationRequest)
-	if err == nil {
-		mutatePod, err := validatePodSpec(&podSpec, &settings)
-		if err != nil {
-			return kubewarden.RejectRequest(
-				kubewarden.Message(err.Error()),
-				kubewarden.Code(400))
-		}
-		if mutatePod {
-			return kubewarden.MutatePodSpecFromRequest(validationRequest, podSpec)
-		}
-	} else {
+	if err != nil {
 		return kubewarden.RejectRequest(kubewarden.Message(err.Error()), kubewarden.Code(400))
 	}
+
+	mutatePod, errValidate := validatePodSpec(&podSpec, &settings)
+	if errValidate != nil {
+		return kubewarden.RejectRequest(
+			kubewarden.Message(errValidate.Error()),
+			kubewarden.Code(400))
+	}
+	if mutatePod {
+		return kubewarden.MutatePodSpecFromRequest(validationRequest, podSpec)
+	}
+
 	return kubewarden.AcceptRequest()
 }
