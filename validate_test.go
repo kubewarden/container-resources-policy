@@ -554,6 +554,107 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 				},
 			}, false, "cpu limit '1' is less than the requested '2' value",
 		},
+		{
+			"cpu limit below minLimit",
+			corev1.Container{
+				Resources: &corev1.ResourceRequirements{
+					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu": &oneCoreCpuQuantity,
+					},
+					Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu": &oneCoreCpuQuantity,
+					},
+				},
+			},
+			Settings{
+				Cpu: &ResourceConfiguration{
+					MinLimit:       twoCore,
+					MaxLimit:       twoCore,
+					DefaultLimit:   twoCore,
+					DefaultRequest: oneCore,
+				},
+				IgnoreImages: []string{},
+			},
+			&corev1.ResourceRequirements{
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu": &oneCoreCpuQuantity,
+				},
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu": &oneCoreCpuQuantity,
+				},
+			},
+			false,
+			"cpu limit '1' doesn't reach the min allowed value '2'",
+		},
+		{
+			"cpu request exceeds maxRequest",
+			corev1.Container{
+				Resources: &corev1.ResourceRequirements{
+					Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu": &twoCoreCpuQuantity,
+					},
+				},
+			},
+			Settings{
+				Cpu: &ResourceConfiguration{
+					MaxRequest: oneCore,
+				},
+			},
+			&corev1.ResourceRequirements{
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu": &twoCoreCpuQuantity,
+				},
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{},
+			},
+			false,
+			"cpu request '2' exceeds the max allowed value '1'",
+		},
+		{
+			"memory request exceeds maxRequest",
+			corev1.Container{
+				Resources: &corev1.ResourceRequirements{
+					Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"memory": &twoGiMemoryQuantity,
+					},
+				},
+			},
+			Settings{
+				Memory: &ResourceConfiguration{
+					MaxRequest: oneGi,
+				},
+			},
+			&corev1.ResourceRequirements{
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"memory": &twoGiMemoryQuantity,
+				},
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{},
+			},
+			false,
+			"memory request '2Gi' exceeds the max allowed value '1Gi'",
+		},
+		{
+			"cpu limit below minLimit",
+			corev1.Container{
+				Resources: &corev1.ResourceRequirements{
+					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu": &oneCoreCpuQuantity,
+					},
+				},
+			},
+			Settings{
+				Cpu: &ResourceConfiguration{
+					MinLimit: twoCore,
+				},
+			},
+			&corev1.ResourceRequirements{
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{},
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu": &oneCoreCpuQuantity,
+				},
+			},
+			false,
+			"cpu limit '1' doesn't reach the min allowed value '2'",
+		},
 	}
 
 	for _, test := range tests {

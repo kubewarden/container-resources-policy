@@ -11,8 +11,10 @@ import (
 )
 
 type ResourceConfiguration struct {
+	MinLimit       resource.Quantity `json:"minLimit"`
 	MaxLimit       resource.Quantity `json:"maxLimit"`
 	MinRequest     resource.Quantity `json:"minRequest"`
+	MaxRequest     resource.Quantity `json:"maxRequest"`
 	DefaultRequest resource.Quantity `json:"defaultRequest"`
 	DefaultLimit   resource.Quantity `json:"defaultLimit"`
 	IgnoreValues   bool              `json:"ignoreValues,omitempty"`
@@ -50,6 +52,20 @@ func (r *ResourceConfiguration) valid() error {
 		}
 	}
 
+	if !r.MaxRequest.IsZero() {
+		if r.MaxRequest.Cmp(r.DefaultLimit) < 0 ||
+			r.MaxRequest.Cmp(r.DefaultRequest) < 0 {
+			return fmt.Errorf("default values cannot be greater than the max request")
+		}
+	}
+
+	if !r.MinLimit.IsZero() {
+		if r.MinLimit.Cmp(r.DefaultLimit) > 0 ||
+			r.MinLimit.Cmp(r.DefaultRequest) > 0 {
+			return fmt.Errorf("default values cannot be smaller than the min limit")
+		}
+	}
+
 	if !r.MinRequest.IsZero() {
 		if r.MinRequest.Cmp(r.DefaultLimit) > 0 ||
 			r.MinRequest.Cmp(r.DefaultRequest) > 0 {
@@ -61,7 +77,7 @@ func (r *ResourceConfiguration) valid() error {
 }
 
 func (r *ResourceConfiguration) allValuesAreZero() bool {
-	return r.MaxLimit.IsZero() && r.DefaultLimit.IsZero() && r.DefaultRequest.IsZero() && r.MinRequest.IsZero()
+	return r.MaxLimit.IsZero() && r.DefaultLimit.IsZero() && r.DefaultRequest.IsZero() && r.MinRequest.IsZero() && r.MinLimit.IsZero() && r.MaxRequest.IsZero()
 }
 
 func (s *Settings) Valid() error {
