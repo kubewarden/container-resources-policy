@@ -121,37 +121,37 @@ func isResourceLimitGreaterThanRequest(container *corev1.Container, resourceName
 }
 
 func parseResourceQuantity(resourceQuantities map[string]*api_resource.Quantity, resourceName string, resourceType string) (resource.Quantity, error) {
-	resourceQtyPtr := resourceQuantities[resourceName]
-	if resourceQtyPtr == nil {
+	quantity := resourceQuantities[resourceName]
+	if quantity == nil {
 		return resource.Quantity{}, fmt.Errorf("invalid %s %s", resourceName, resourceType)
 	}
-	quantity, err := resource.ParseQuantity(string(*resourceQtyPtr))
+	parsedQuantity, err := resource.ParseQuantity(string(*quantity))
 	if err != nil {
 		return resource.Quantity{}, fmt.Errorf("invalid %s %s", resourceName, resourceType)
 	}
-	return quantity, nil
+	return parsedQuantity, nil
 }
 
 // validateResourceMin validates that the resource limit/request value is greater than or equal to the minimum allowed value
-func validateResourceMin(resourceQuantities map[string]*api_resource.Quantity, resourceName string, minAllowedQuantity resource.Quantity, resourceType string) error {
+func validateResourceMin(resourceQuantities map[string]*api_resource.Quantity, resourceName string, minimum resource.Quantity, resourceType string) error {
 	quantity, err := parseResourceQuantity(resourceQuantities, resourceName, resourceType)
 	if err != nil {
 		return err
 	}
-	if quantity.Cmp(minAllowedQuantity) < 0 {
-		return fmt.Errorf("%s %s '%s' doesn't reach the min allowed value '%s'", resourceName, resourceType, quantity.String(), minAllowedQuantity.String())
+	if quantity.Cmp(minimum) < 0 {
+		return fmt.Errorf("%s %s '%s' doesn't reach the min allowed value '%s'", resourceName, resourceType, quantity.String(), minimum.String())
 	}
 	return nil
 }
 
 // validateResourceMax validates that the resource limit/request value is less than or equal to the maximum allowed value
-func validateResourceMax(resourceQuantities map[string]*api_resource.Quantity, resourceName string, maxAllowedQuantity resource.Quantity, resourceType string) error {
+func validateResourceMax(resourceQuantities map[string]*api_resource.Quantity, resourceName string, maximum resource.Quantity, resourceType string) error {
 	quantity, err := parseResourceQuantity(resourceQuantities, resourceName, resourceType)
 	if err != nil {
 		return err
 	}
-	if quantity.Cmp(maxAllowedQuantity) > 0 {
-		return fmt.Errorf("%s %s '%s' exceeds the max allowed value '%s'", resourceName, resourceType, quantity.String(), maxAllowedQuantity.String())
+	if quantity.Cmp(maximum) > 0 {
+		return fmt.Errorf("%s %s '%s' exceeds the max allowed value '%s'", resourceName, resourceType, quantity.String(), maximum.String())
 	}
 	return nil
 }
@@ -172,13 +172,15 @@ func validateResourceMax(resourceQuantities map[string]*api_resource.Quantity, r
 //
 // Returns true when it mutates the container.
 func validateContainerResourceLimitsAndRequests(container *corev1.Container, resourceName string, resourceConfig *ResourceConfiguration) (bool, error) {
+	mutated := false
 	if missingResourceQuantity(container.Resources.Limits, resourceName) {
 		if !resourceConfig.DefaultLimit.IsZero() {
 			// If the container doesn't have a limit, and the settings have a default limit,
 			// mutate and add the default limit
 			newLimit := api_resource.Quantity(resourceConfig.DefaultLimit.String())
 			container.Resources.Limits[resourceName] = &newLimit
-			return true, nil
+			// return after all checks are done
+			mutated = true
 		}
 	} else { // the container has a limit
 		if !resourceConfig.MaxLimit.IsZero() {
@@ -210,9 +212,23 @@ func validateContainerResourceLimitsAndRequests(container *corev1.Container, res
 				return false, err
 			}
 		}
+
+		// This ensures consistency: if limit must be >= minLimit, then request (which must be <= limit) should also be >= minLimit
+		if !resourceConfig.MinLimit.IsZero() {
+			if err := validateResourceMin(container.Resources.Requests, resourceName, resourceConfig.MinLimit, "request"); err != nil {
+				return false, err
+			}
+		}
+
+		// This ensures consistency: if request must be <= maxRequest, then limit (which must be >= request) should also be <= maxRequest
+		if !resourceConfig.MaxLimit.IsZero() {
+			if err := validateResourceMax(container.Resources.Limits, resourceName, resourceConfig.MaxLimit, "limit"); err != nil {
+				return false, err
+			}
+		}
 	}
 
-	return false, nil
+	return mutated, nil
 }
 
 // validateAndAdjustContainerConstraints validates the container for
@@ -267,7 +283,7 @@ func validateAndAdjustContainer(container *corev1.Container, settings *Settings)
 		container.Resources.Requests = make(map[string]*api_resource.Quantity)
 	}
 
-	// Add new check for minLimit, maxLimit, minRequest, and maxRequest
+	// Check if container resource configuration is compliant with  minLimit, maxLimit, minRequest, and maxRequest settings.
 	limitsMutation, err := validateAndAdjustContainerConstraints(container, settings)
 	if err != nil {
 		return false, err

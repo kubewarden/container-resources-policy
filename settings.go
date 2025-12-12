@@ -73,6 +73,20 @@ func (r *ResourceConfiguration) valid() error {
 		}
 	}
 
+	// Ensure maxRequest <= maxLimit when both are configured
+	if !r.MaxRequest.IsZero() && !r.MaxLimit.IsZero() {
+		if r.MaxRequest.Cmp(r.MaxLimit) > 0 {
+			return fmt.Errorf("max request cannot be greater than the max limit")
+		}
+	}
+
+	// Ensure minLimit <= minRequest when both are configured
+	if !r.MinLimit.IsZero() && !r.MinRequest.IsZero() {
+		if r.MinLimit.Cmp(r.MinRequest) > 0 {
+			return fmt.Errorf("min limit cannot be greater than the min request")
+		}
+	}
+
 	return nil
 }
 

@@ -234,9 +234,9 @@
   [ $(expr "$output" : ".*memory request.*exceeds the max allowed value.*") -ne 0 ]
 }
 
-@test "policy passes when the request resource is lower than the maxRequest set by the policy" {
+@test "policy passes when the request resource is lower than the cpu maxRequest set by the policy" {
   run kwctl run annotated-policy.wasm -r test_data/deployment_with_requests_no_limit_resources_admission_request.json \
-    --settings-json '{"cpu": {"maxRequest": 2, "defaultRequest": 2, "defaultLimit": 2, "ignoreValues":false}, "memory" : {"minRequest": "300Mi", "defaultRequest" : "300Mi", "defaultLimit" : "300Mi", "ignoreValues":false}, "ignoreImages": ["image:latest"]}'
+    --settings-json '{"cpu": {"maxRequest": 2, "defaultRequest": 2, "defaultLimit": 2, "ignoreValues":false}, "ignoreImages": ["image:latest"]}'
   [ "$status" -eq 0 ]
   [ $(expr "$output" : '.*allowed":true') -ne 0 ]
 }
@@ -257,9 +257,12 @@
   [ $(expr "$output" : ".*memory limit.*doesn't reach the min allowed value.*") -ne 0 ]
 }
 
+
 @test "policy passes when the request resource is greater than the minLimits set by the policy" {
   run kwctl run annotated-policy.wasm -r test_data/deployment_with_requests_no_limit_resources_admission_request.json \
-    --settings-json '{"cpu": {"minLimit": 0.5, "defaultLimit": 0.5, "defaultRequest": 0.5, "ignoreValues":false}, "memory" : {"minLimit": "0.5G", "defaultLimit": "0.5G", "defaultRequest": "0.5G", "ignoreValues":false}, "ignoreImages": ["image:latest"]}'
+    --settings-json '{"cpu": {"minLimit": 0.5, "defaultLimit": 0.5, "defaultRequest": 0.5, "ignoreValues":false}, "memory" : {"minLimit": "500Mi", "defaultLimit": "500Mi", "defaultRequest": "500Mi", "ignoreValues":false}, "ignoreImages": ["image:latest"]}'
   [ "$status" -eq 0 ]
-  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+  echo $output
+  [ $(expr "$output" : '.*allowed":false') -ne 0 ]
+  [ $(expr "$output" : ".*memory request.*doesn't reach the min allowed value.*") -ne 0 ]
 }

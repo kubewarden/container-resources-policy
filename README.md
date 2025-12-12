@@ -87,6 +87,8 @@ The policy verifies the consistency of the values provided:
 - `defaultLimit` must be >= `minLimit`, <= `maxLimit`
 - `minLimit` must be <= `defaultLimit`, <= `defaultRequest`
 - `maxRequest` must be >= `defaultLimit`, >= `defaultRequest`
+- `maxRequest` must be <= `maxLimit` (when both are configured)
+- `minLimit` must be <= `minRequest` (when both are configured)
 
 Full example of policy definition:
 
