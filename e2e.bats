@@ -249,7 +249,7 @@
   [ $(expr "$output" : ".*cpu limit.*doesn't reach the min allowed value.*") -ne 0 ]
 }
 
-@test "policy rejects when the memory resource limit exceeds the minLimit set by the policy" {
+@test "policy rejects when the memory resource limit below the minLimit set by the policy" {
   run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
     --settings-json '{"memory" : {"minLimit": "2G", "defaultLimit": "2G", "defaultRequest": "2G", "ignoreValues":false}, "ignoreImages": ["image:latest"]}'
   [ "$status" -eq 0 ]
