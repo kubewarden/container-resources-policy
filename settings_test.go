@@ -44,6 +44,17 @@ func TestParsingResourceConfiguration(t *testing.T) {
 		{"defaults lower than min request", []byte(`{"minRequest": "4m", "defaultRequest": "3m", "defaultLimit": "4m"}`), "default values cannot be smaller than the min request"},
 		{"valid resource configuration", []byte(`{"maxLimit": "4G", "defaultLimit": "2G", "defaultRequest": "1G"}`), ""},
 		{"valid resource configuration with all fields", []byte(`{"minRequest": "1G", "maxLimit": "4G", "defaultLimit": "2G", "defaultRequest": "1G"}`), ""},
+		{"minLimit greater than defaultLimit", []byte(`{"minLimit": "3m", "defaultLimit": "2m", "defaultRequest": "1m"}`), "default values cannot be smaller than the min limit"},
+		{"minLimit greater than defaultRequest", []byte(`{"minLimit": "2m", "defaultLimit": "3m", "defaultRequest": "1m"}`), "default values cannot be smaller than the min limit"},
+		{"maxRequest less than defaultLimit", []byte(`{"maxRequest": "1m", "defaultLimit": "2m", "defaultRequest": "3m"}`), "default values cannot be greater than the max request"},
+		{"maxRequest less than defaultRequest", []byte(`{"maxRequest": "1m", "defaultLimit": "3m", "defaultRequest": "2m"}`), "default values cannot be greater than the max request"},
+		{"valid minLimit configuration", []byte(`{"minLimit": "1m", "defaultLimit": "2m", "defaultRequest": "1m"}`), ""},
+		{"valid maxRequest configuration", []byte(`{"maxRequest": "3m", "defaultLimit": "2m", "defaultRequest": "1m"}`), ""},
+		{"valid minLimit and maxRequest together", []byte(`{"minLimit": "1m", "maxRequest": "3m", "defaultLimit": "2m", "defaultRequest": "2m"}`), ""},
+		{"minLimit with maxLimit consistency", []byte(`{"minLimit": "1m", "maxLimit": "4m", "defaultLimit": "2m", "defaultRequest": "1m"}`), ""},
+		{"maxRequest with minRequest consistency", []byte(`{"minRequest": "1m", "maxRequest": "4m", "defaultLimit": "3m", "defaultRequest": "2m"}`), ""},
+		{"maxRequest greater than maxLimit", []byte(`{"maxRequest": "5m", "maxLimit": "4m", "defaultLimit": "3m", "defaultRequest": "2m"}`), "max request cannot be greater than the max limit"},
+		{"minLimit greater than minRequest", []byte(`{"minLimit": "3m", "minRequest": "2m", "defaultLimit": "4m", "defaultRequest": "3m"}`), "min limit cannot be greater than the min request"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -90,6 +101,15 @@ func TestParsingSettings(t *testing.T) {
 		{"valid settings with empty memory settings", []byte(`{"cpu": {"maxLimit": "1m", "defaultRequest": "1m", "defaultLimit": "1m"}, "memory":{"ignoreValues": false}, "ignoreImages": ["image:latest"]}`), ""},
 		{"valid settings with empty cpu settings", []byte(`{"cpu": {"ignoreValues": false}, "memory":{ "defaultLimit": "200M", "defaultRequest": "100M", "maxLimit": "500M", "ignoreValues": false}, "ignoreImages": ["image:latest"]}`), ""},
 		{"invalid settings with empty cpu and memory settings", []byte(`{"cpu": {"ignoreValues": false}, "memory":{"ignoreValues": false}, "ignoreImages": ["image:latest"]}`), "invalid cpu settings\nall the quantities must be defined\ninvalid memory settings\nall the quantities must be defined"},
+		{"invalid cpu minLimit", []byte(`{"cpu": {"minLimit": "3m", "defaultLimit": "2m", "defaultRequest": "1m"}}`), "default values cannot be smaller than the min limit"},
+		{"invalid cpu maxRequest", []byte(`{"cpu": {"maxRequest": "1m", "defaultLimit": "2m", "defaultRequest": "3m"}}`), "default values cannot be greater than the max request"},
+		{"invalid memory minLimit", []byte(`{"memory": {"minLimit": "3G", "defaultLimit": "2G", "defaultRequest": "1G"}}`), "default values cannot be smaller than the min limit"},
+		{"invalid memory maxRequest", []byte(`{"memory": {"maxRequest": "1G", "defaultLimit": "2G", "defaultRequest": "3G"}}`), "default values cannot be greater than the max request"},
+		{"valid settings with minLimit and maxRequest", []byte(`{"cpu": {"minLimit": "1m", "maxLimit": "4m", "maxRequest": "3m", "defaultLimit": "2m", "defaultRequest": "2m"}, "memory": {"minLimit": "1G", "maxLimit": "4G", "maxRequest": "3G", "defaultLimit": "2G", "defaultRequest": "2G"}}`), ""},
+		{"invalid cpu maxRequest greater than maxLimit", []byte(`{"cpu": {"maxRequest": "5m", "maxLimit": "4m", "defaultLimit": "3m", "defaultRequest": "2m"}}`), "max request cannot be greater than the max limit"},
+		{"invalid cpu minLimit greater than minRequest", []byte(`{"cpu": {"minLimit": "3m", "minRequest": "2m", "defaultLimit": "4m", "defaultRequest": "3m"}}`), "min limit cannot be greater than the min request"},
+		{"invalid memory maxRequest greater than maxLimit", []byte(`{"memory": {"maxRequest": "5G", "maxLimit": "4G", "defaultLimit": "3G", "defaultRequest": "2G"}}`), "max request cannot be greater than the max limit"},
+		{"invalid memory minLimit greater than minRequest", []byte(`{"memory": {"minLimit": "3G", "minRequest": "2G", "defaultLimit": "4G", "defaultRequest": "3G"}}`), "min limit cannot be greater than the min request"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
