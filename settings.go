@@ -40,53 +40,76 @@ func (s *Settings) shouldIgnoreMemoryValues() bool {
 	return s.Memory != nil && (s.Memory.IgnoreValues || (!s.Memory.IgnoreValues && s.Memory.allValuesAreZero()))
 }
 
+// validateOrder validates ordering: a <= b
+func validateOrder(a, b resource.Quantity, aName, bName string) error {
+	if !a.IsZero() && !b.IsZero() && a.Cmp(b) > 0 {
+		return fmt.Errorf("%s: %s cannot be greater than %s: %s", aName, a.String(), bName, b.String())
+	}
+	return nil
+}
+
 func (r *ResourceConfiguration) valid() error {
 	if r.allValuesAreZero() && !r.IgnoreValues {
 		return AllValuesAreZeroError{}
 	}
 
-	if !r.MaxLimit.IsZero() {
-		if r.MaxLimit.Cmp(r.DefaultLimit) < 0 ||
-			r.MaxLimit.Cmp(r.DefaultRequest) < 0 {
-			return fmt.Errorf("default values cannot be greater than the max limit")
-		}
+	// Core chain: minRequest <= defaultRequest <= maxRequest <= minLimit <= defaultLimit <= maxLimit
+	// This enforces the constraint: limit >= request for all combinations
+	// The chain ensures that any limit is always >= any request
+	// Validate max limit relationships
+	if err := validateOrder(r.DefaultLimit, r.MaxLimit, "default limit", "max limit"); err != nil {
+		return err
+	}
+	if err := validateOrder(r.MinLimit, r.MaxLimit, "min limit", "max limit"); err != nil {
+		return err
+	}
+	if err := validateOrder(r.MaxRequest, r.MaxLimit, "max request", "max limit"); err != nil {
+		return err
+	}
+	if err := validateOrder(r.DefaultRequest, r.MaxLimit, "default request", "max limit"); err != nil {
+		return err
+	}
+	if err := validateOrder(r.MinRequest, r.MaxLimit, "min request", "max limit"); err != nil {
+		return err
 	}
 
-	if !r.MaxRequest.IsZero() {
-		if r.MaxRequest.Cmp(r.DefaultLimit) < 0 ||
-			r.MaxRequest.Cmp(r.DefaultRequest) < 0 {
-			return fmt.Errorf("default values cannot be greater than the max request")
-		}
+	// Validate default limit relationships
+	if err := validateOrder(r.MinLimit, r.DefaultLimit, "min limit", "default limit"); err != nil {
+		return err
+	}
+	if err := validateOrder(r.MaxRequest, r.DefaultLimit, "max request", "default limit"); err != nil {
+		return err
+	}
+	if err := validateOrder(r.DefaultRequest, r.DefaultLimit, "default request", "default limit"); err != nil {
+		return err
+	}
+	if err := validateOrder(r.MinRequest, r.DefaultLimit, "min request", "default limit"); err != nil {
+		return err
 	}
 
-	if !r.MinLimit.IsZero() {
-		if r.MinLimit.Cmp(r.DefaultLimit) > 0 ||
-			r.MinLimit.Cmp(r.DefaultRequest) > 0 {
-			return fmt.Errorf("default values cannot be smaller than the min limit")
-		}
+	// Validate min limit relationships
+	if err := validateOrder(r.MaxRequest, r.MinLimit, "max request", "min limit"); err != nil {
+		return err
+	}
+	if err := validateOrder(r.DefaultRequest, r.MinLimit, "default request", "min limit"); err != nil {
+		return err
+	}
+	if err := validateOrder(r.MinRequest, r.MinLimit, "min request", "min limit"); err != nil {
+		return err
 	}
 
-	if !r.MinRequest.IsZero() {
-		if r.MinRequest.Cmp(r.DefaultLimit) > 0 ||
-			r.MinRequest.Cmp(r.DefaultRequest) > 0 {
-			return fmt.Errorf("default values cannot be smaller than the min request")
-		}
+	// Validate max request relationships
+	if err := validateOrder(r.DefaultRequest, r.MaxRequest, "default request", "max request"); err != nil {
+		return err
+	}
+	if err := validateOrder(r.MinRequest, r.MaxRequest, "min request", "max request"); err != nil {
+		return err
 	}
 
-	// Ensure maxRequest <= maxLimit when both are configured
-	if !r.MaxRequest.IsZero() && !r.MaxLimit.IsZero() {
-		if r.MaxRequest.Cmp(r.MaxLimit) > 0 {
-			return fmt.Errorf("max request cannot be greater than the max limit")
-		}
+	// Validate default request relationships
+	if err := validateOrder(r.MinRequest, r.DefaultRequest, "min request", "default request"); err != nil {
+		return err
 	}
-
-	// Ensure minLimit <= minRequest when both are configured
-	if !r.MinLimit.IsZero() && !r.MinRequest.IsZero() {
-		if r.MinLimit.Cmp(r.MinRequest) > 0 {
-			return fmt.Errorf("min limit cannot be greater than the min request")
-		}
-	}
-
 	return nil
 }
 

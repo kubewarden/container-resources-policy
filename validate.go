@@ -162,12 +162,8 @@ func validateResourceMax(resourceQuantities map[string]*api_resource.Quantity, r
 // When the CPU/Memory limit is not specified: the container is mutated to use
 // the `defaultLimit`.
 //
-// When the CPU/Memory limit is specified: the request is accepted if the limit
-// defined by the container is
-// - less than or equal to the `maxLimit`
-// - more than or equal to the `minLimit`
-// - less than or equal to the `maxRequest`
-// - more than or equal to the `minRequest`
+// When the CPU/Memory limit is specified: the resource request falls in the following ranges:
+// minRequest <= {request} <= maxRequest <= minLimit <= {limit} <= maxLimit
 // or IgnoreValues is true. Otherwise the request is rejected.
 //
 // Returns true when it mutates the container.
@@ -234,12 +230,8 @@ func validateContainerResourceLimitsAndRequests(container *corev1.Container, res
 // validateAndAdjustContainerConstraints validates the container for
 // maxLimit, minLimit, maxRequest, minRequest, and mutates it when it doesn't pass validation.
 //
-// When the CPU/Memory limit is specified: the request is accepted if the limit
-// defined by the container is
-// - less than or equal to the `maxLimit`
-// - more than or equal to the `minLimit`
-// - less than or equal to the `maxRequest`
-// - more than or equal to the `minRequest`
+// When the CPU/Memory limit is specified: the resource request falls in the following ranges:
+// minRequest <= {request} <= maxRequest <= minLimit <= {limit} <= maxLimit
 // or IgnoreValues is true. Otherwise the request is rejected.
 //
 // When the CPU/Memory limit is not specified: the container is mutated to use
