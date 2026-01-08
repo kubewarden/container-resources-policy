@@ -45,46 +45,78 @@ func (r *ResourceConfiguration) valid() error {
 		return AllValuesAreZeroError{}
 	}
 
-	if !r.MaxLimit.IsZero() {
-		if r.MaxLimit.Cmp(r.DefaultLimit) < 0 ||
-			r.MaxLimit.Cmp(r.DefaultRequest) < 0 {
-			return fmt.Errorf("default values cannot be greater than the max limit")
-		}
+	// Core chain: minRequest <= defaultRequest <= maxRequest <= minLimit <= defaultLimit <= maxLimit
+	// This enforces the constraint: limit >= request for all combinations
+	// The chain ensures that any limit is always >= any request
+
+	// Validate max limit relationships
+	// defaultLimit <= maxLimit
+	if !r.DefaultLimit.IsZero() && !r.MaxLimit.IsZero() && r.DefaultLimit.Cmp(r.MaxLimit) > 0 {
+		return fmt.Errorf("default limit: %s cannot be greater than max limit: %s", r.DefaultLimit.String(), r.MaxLimit.String())
+	}
+	// minLimit <= maxLimit
+	if !r.MinLimit.IsZero() && !r.MaxLimit.IsZero() && r.MinLimit.Cmp(r.MaxLimit) > 0 {
+		return fmt.Errorf("min limit: %s cannot be greater than max limit: %s", r.MinLimit.String(), r.MaxLimit.String())
+	}
+	// maxRequest <= maxLimit
+	if !r.MaxRequest.IsZero() && !r.MaxLimit.IsZero() && r.MaxRequest.Cmp(r.MaxLimit) > 0 {
+		return fmt.Errorf("max request: %s cannot be greater than max limit: %s", r.MaxRequest.String(), r.MaxLimit.String())
+	}
+	// defaultRequest <= maxLimit
+	if !r.DefaultRequest.IsZero() && !r.MaxLimit.IsZero() && r.DefaultRequest.Cmp(r.MaxLimit) > 0 {
+		return fmt.Errorf("default request: %s cannot be greater than max limit: %s", r.DefaultRequest.String(), r.MaxLimit.String())
+	}
+	// minRequest <= maxLimit
+	if !r.MinRequest.IsZero() && !r.MaxLimit.IsZero() && r.MinRequest.Cmp(r.MaxLimit) > 0 {
+		return fmt.Errorf("min request: %s cannot be greater than max limit: %s", r.MinRequest.String(), r.MaxLimit.String())
 	}
 
-	if !r.MaxRequest.IsZero() {
-		if r.MaxRequest.Cmp(r.DefaultLimit) < 0 ||
-			r.MaxRequest.Cmp(r.DefaultRequest) < 0 {
-			return fmt.Errorf("default values cannot be greater than the max request")
-		}
+	// Validate default limit relationships
+	// minLimit <= defaultLimit
+	if !r.MinLimit.IsZero() && !r.DefaultLimit.IsZero() && r.MinLimit.Cmp(r.DefaultLimit) > 0 {
+		return fmt.Errorf("min limit: %s cannot be greater than default limit: %s", r.MinLimit.String(), r.DefaultLimit.String())
+	}
+	// maxRequest <= defaultLimit
+	if !r.MaxRequest.IsZero() && !r.DefaultLimit.IsZero() && r.MaxRequest.Cmp(r.DefaultLimit) > 0 {
+		return fmt.Errorf("max request: %s cannot be greater than default limit: %s", r.MaxRequest.String(), r.DefaultLimit.String())
+	}
+	// defaultRequest <= defaultLimit
+	if !r.DefaultRequest.IsZero() && !r.DefaultLimit.IsZero() && r.DefaultRequest.Cmp(r.DefaultLimit) > 0 {
+		return fmt.Errorf("default request: %s cannot be greater than default limit: %s", r.DefaultRequest.String(), r.DefaultLimit.String())
+	}
+	// minRequest <= defaultLimit
+	if !r.MinRequest.IsZero() && !r.DefaultLimit.IsZero() && r.MinRequest.Cmp(r.DefaultLimit) > 0 {
+		return fmt.Errorf("min request: %s cannot be greater than default limit: %s", r.MinRequest.String(), r.DefaultLimit.String())
 	}
 
-	if !r.MinLimit.IsZero() {
-		if r.MinLimit.Cmp(r.DefaultLimit) > 0 ||
-			r.MinLimit.Cmp(r.DefaultRequest) > 0 {
-			return fmt.Errorf("default values cannot be smaller than the min limit")
-		}
+	// Validate min limit relationships
+	// maxRequest <= minLimit
+	if !r.MaxRequest.IsZero() && !r.MinLimit.IsZero() && r.MaxRequest.Cmp(r.MinLimit) > 0 {
+		return fmt.Errorf("max request: %s cannot be greater than min limit: %s", r.MaxRequest.String(), r.MinLimit.String())
+	}
+	// defaultRequest <= minLimit
+	if !r.DefaultRequest.IsZero() && !r.MinLimit.IsZero() && r.DefaultRequest.Cmp(r.MinLimit) > 0 {
+		return fmt.Errorf("default request: %s cannot be greater than min limit: %s", r.DefaultRequest.String(), r.MinLimit.String())
+	}
+	// minRequest <= minLimit
+	if !r.MinRequest.IsZero() && !r.MinLimit.IsZero() && r.MinRequest.Cmp(r.MinLimit) > 0 {
+		return fmt.Errorf("min request: %s cannot be greater than min limit: %s", r.MinRequest.String(), r.MinLimit.String())
 	}
 
-	if !r.MinRequest.IsZero() {
-		if r.MinRequest.Cmp(r.DefaultLimit) > 0 ||
-			r.MinRequest.Cmp(r.DefaultRequest) > 0 {
-			return fmt.Errorf("default values cannot be smaller than the min request")
-		}
+	// Validate max request relationships
+	// defaultRequest <= maxRequest
+	if !r.DefaultRequest.IsZero() && !r.MaxRequest.IsZero() && r.DefaultRequest.Cmp(r.MaxRequest) > 0 {
+		return fmt.Errorf("default request: %s cannot be greater than max request: %s", r.DefaultRequest.String(), r.MaxRequest.String())
+	}
+	// minRequest <= maxRequest
+	if !r.MinRequest.IsZero() && !r.MaxRequest.IsZero() && r.MinRequest.Cmp(r.MaxRequest) > 0 {
+		return fmt.Errorf("min request: %s cannot be greater than max request: %s", r.MinRequest.String(), r.MaxRequest.String())
 	}
 
-	// Ensure maxRequest <= maxLimit when both are configured
-	if !r.MaxRequest.IsZero() && !r.MaxLimit.IsZero() {
-		if r.MaxRequest.Cmp(r.MaxLimit) > 0 {
-			return fmt.Errorf("max request cannot be greater than the max limit")
-		}
-	}
-
-	// Ensure minLimit <= minRequest when both are configured
-	if !r.MinLimit.IsZero() && !r.MinRequest.IsZero() {
-		if r.MinLimit.Cmp(r.MinRequest) > 0 {
-			return fmt.Errorf("min limit cannot be greater than the min request")
-		}
+	// Validate default request relationships
+	// minRequest <= defaultRequest
+	if !r.MinRequest.IsZero() && !r.DefaultRequest.IsZero() && r.MinRequest.Cmp(r.DefaultRequest) > 0 {
+		return fmt.Errorf("min request: %s cannot be greater than default request: %s", r.MinRequest.String(), r.DefaultRequest.String())
 	}
 
 	return nil

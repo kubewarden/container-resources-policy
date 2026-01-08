@@ -2,11 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"strings"
+	"errors"
 	"testing"
 
 	"github.com/kubewarden/container-resources-policy/resource"
 	kubewarden_protocol "github.com/kubewarden/policy-sdk-go/protocol"
+	"github.com/stretchr/testify/require"
 )
 
 func checkSettingsValues(t *testing.T, settings *ResourceConfiguration, expectedMaxLimit, expectedDefaultRequest, expectedDefaultLimit string, expectedIgnoreValues bool) {
@@ -29,57 +30,177 @@ func checkSettingsValues(t *testing.T, settings *ResourceConfiguration, expected
 
 func TestParsingResourceConfiguration(t *testing.T) {
 	tests := []struct {
-		name         string
-		rawSettings  []byte
-		errorMessage string
+		name        string
+		rawSettings []byte
+		err         error
 	}{
-		{"no suffix", []byte(`{"maxLimit": "3", "minRequest": "1", "defaultLimit": "2", "defaultRequest": "1"}`), ""},
-		{"valid ignoreValues with valid resource configuration", []byte(`{"maxLimit": "3", "minRequest": "1", "defaultLimit": "2", "defaultRequest": "1", "ignoreValues": true}`), ""},
-		{"valid ignoreValues", []byte(`{"maxLimit": "3", "minRequest": "1", "defaultLimit": "2", "defaultRequest": "1", "ignoreValues": false}`), ""},
-		{"valid ignoreValues", []byte(`{"ignoreValues": true}`), ""},
-		{"invalid ignoreValues", []byte(`{"ignoreValues": false}`), "all the quantities must be defined"},
-		{"invalid limit suffix", []byte(`{"maxLimit": "1x", "minRequest": "1x", "defaultLimit": "1m", "defaultRequest": "1m"}`), "quantities must match the regular expression"},
-		{"invalid request suffix", []byte(`{"maxLimit": "3m", "minRequest": "1m", "defaultLimit": "2m", "defaultRequest": "1x"}`), "quantities must match the regular expression"},
-		{"defaults greater than max limit", []byte(`{"maxLimit": "2m", "defaultRequest": "3m", "defaultLimit": "4m"}`), "default values cannot be greater than the max limit"},
-		{"defaults lower than min request", []byte(`{"minRequest": "4m", "defaultRequest": "3m", "defaultLimit": "4m"}`), "default values cannot be smaller than the min request"},
-		{"valid resource configuration", []byte(`{"maxLimit": "4G", "defaultLimit": "2G", "defaultRequest": "1G"}`), ""},
-		{"valid resource configuration with all fields", []byte(`{"minRequest": "1G", "maxLimit": "4G", "defaultLimit": "2G", "defaultRequest": "1G"}`), ""},
-		{"minLimit greater than defaultLimit", []byte(`{"minLimit": "3m", "defaultLimit": "2m", "defaultRequest": "1m"}`), "default values cannot be smaller than the min limit"},
-		{"minLimit greater than defaultRequest", []byte(`{"minLimit": "2m", "defaultLimit": "3m", "defaultRequest": "1m"}`), "default values cannot be smaller than the min limit"},
-		{"maxRequest less than defaultLimit", []byte(`{"maxRequest": "1m", "defaultLimit": "2m", "defaultRequest": "3m"}`), "default values cannot be greater than the max request"},
-		{"maxRequest less than defaultRequest", []byte(`{"maxRequest": "1m", "defaultLimit": "3m", "defaultRequest": "2m"}`), "default values cannot be greater than the max request"},
-		{"valid minLimit configuration", []byte(`{"minLimit": "1m", "defaultLimit": "2m", "defaultRequest": "1m"}`), ""},
-		{"valid maxRequest configuration", []byte(`{"maxRequest": "3m", "defaultLimit": "2m", "defaultRequest": "1m"}`), ""},
-		{"valid minLimit and maxRequest together", []byte(`{"minLimit": "1m", "maxRequest": "3m", "defaultLimit": "2m", "defaultRequest": "2m"}`), ""},
-		{"minLimit with maxLimit consistency", []byte(`{"minLimit": "1m", "maxLimit": "4m", "defaultLimit": "2m", "defaultRequest": "1m"}`), ""},
-		{"maxRequest with minRequest consistency", []byte(`{"minRequest": "1m", "maxRequest": "4m", "defaultLimit": "3m", "defaultRequest": "2m"}`), ""},
-		{"maxRequest greater than maxLimit", []byte(`{"maxRequest": "5m", "maxLimit": "4m", "defaultLimit": "3m", "defaultRequest": "2m"}`), "max request cannot be greater than the max limit"},
-		{"minLimit greater than minRequest", []byte(`{"minLimit": "3m", "minRequest": "2m", "defaultLimit": "4m", "defaultRequest": "3m"}`), "min limit cannot be greater than the min request"},
+		{
+			name:        "no suffix",
+			rawSettings: []byte(`{"maxLimit": "3", "minRequest": "1", "defaultLimit": "2", "defaultRequest": "1"}`),
+		},
+		{
+			name:        "valid ignoreValues with valid resource configuration",
+			rawSettings: []byte(`{"maxLimit": "3", "minRequest": "1", "defaultLimit": "2", "defaultRequest": "1", "ignoreValues": true}`),
+		},
+		{
+			name:        "valid ignoreValues",
+			rawSettings: []byte(`{"maxLimit": "3", "minRequest": "1", "defaultLimit": "2", "defaultRequest": "1", "ignoreValues": false}`),
+		},
+		{
+			name:        "valid ignoreValues",
+			rawSettings: []byte(`{"ignoreValues": true}`),
+		},
+		{
+			name:        "invalid ignoreValues",
+			rawSettings: []byte(`{"ignoreValues": false}`),
+			err:         AllValuesAreZeroError{},
+		},
+		{
+			name:        "invalid limit suffix",
+			rawSettings: []byte(`{"maxLimit": "1x", "minRequest": "1x", "defaultLimit": "1m", "defaultRequest": "1m"}`),
+			err:         errors.New("quantities must match the regular expression '^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$'"),
+		},
+		{
+			name:        "invalid request suffix",
+			rawSettings: []byte(`{"maxLimit": "3m", "minRequest": "1m", "defaultLimit": "2m", "defaultRequest": "1x"}`),
+			err:         errors.New("quantities must match the regular expression '^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$'"),
+		},
+		{
+			name:        "valid resource configuration",
+			rawSettings: []byte(`{"maxLimit": "4G", "defaultLimit": "2G", "defaultRequest": "1G"}`),
+		},
+		{
+			name:        "valid resource configuration with all fields",
+			rawSettings: []byte(`{"minRequest": "1G", "maxLimit": "4G", "defaultLimit": "2G", "defaultRequest": "1G"}`),
+		},
+		{
+			name:        "valid: minLimit configuration",
+			rawSettings: []byte(`{"minLimit": "1m", "defaultLimit": "2m", "defaultRequest": "1m"}`),
+		},
+		{
+			name:        "valid: maxRequest configuration",
+			rawSettings: []byte(`{"maxRequest": "2m", "defaultLimit": "3m", "defaultRequest": "1m"}`),
+		},
+		{
+			name:        "valid: minLimit with maxLimit consistency",
+			rawSettings: []byte(`{"minLimit": "1m", "maxLimit": "4m", "defaultLimit": "2m", "defaultRequest": "1m"}`),
+		},
+		{
+			name:        "valid: maxRequest with minRequest consistency",
+			rawSettings: []byte(`{"minRequest": "1m", "maxRequest": "2m", "defaultLimit": "3m", "defaultRequest": "2m"}`),
+		},
+		{
+			name:        "setting only maxLimit",
+			rawSettings: []byte(`{"maxLimit": "3m"}`),
+		},
+		{
+			name:        "setting only minLimit",
+			rawSettings: []byte(`{"minLimit": "3m"}`),
+		},
+		{
+			name:        "setting only maxRequest",
+			rawSettings: []byte(`{"maxRequest": "3m"}`),
+		},
+		{
+			name:        "setting only minRequest",
+			rawSettings: []byte(`{"minRequest": "3m"}`),
+		},
+		{
+			name:        "setting only defaultLimit",
+			rawSettings: []byte(`{"defaultLimit": "3m"}`),
+		},
+		{
+			name:        "setting only defaultRequest",
+			rawSettings: []byte(`{"defaultRequest": "3m"}`),
+		},
+		{
+			name:        "invalid: defaultLimit > maxLimit",
+			rawSettings: []byte(`{"maxLimit": "2m", "defaultRequest": "3m", "defaultLimit": "4m"}`),
+			err:         errors.New("default limit: 4m cannot be greater than max limit: 2m"),
+		},
+		{
+			name:        "invalid: defaultLimit < minRequest",
+			rawSettings: []byte(`{"minRequest": "4m", "defaultRequest": "3m", "defaultLimit": "4m"}`),
+			err:         errors.New("min request: 4m cannot be greater than default request: 3m"),
+		},
+		{
+			name:        "invalid: minLimit > defaultLimit",
+			rawSettings: []byte(`{"minLimit": "3m", "defaultLimit": "2m", "defaultRequest": "1m"}`),
+			err:         errors.New("min limit: 3m cannot be greater than default limit: 2m"),
+		},
+		{
+			name:        "invalid: minLimit > defaultRequest",
+			rawSettings: []byte(`{"minLimit": "2m", "defaultLimit": "3m", "defaultRequest": "1m"}`),
+		},
+		{
+			name:        "invalid: maxRequest < defaultLimit",
+			rawSettings: []byte(`{"maxRequest": "1m", "defaultLimit": "2m", "defaultRequest": "3m"}`),
+			err:         errors.New("default request: 3m cannot be greater than default limit: 2m"),
+		},
+		{
+			name:        "invalid: maxRequest < defaultRequest",
+			rawSettings: []byte(`{"maxRequest": "1m", "defaultLimit": "3m", "defaultRequest": "2m"}`),
+			err:         errors.New("default request: 2m cannot be greater than max request: 1m"),
+		},
+		{
+			name:        "valid: complete constraint chain: minRequest <= maxRequest <= minLimit <= maxLimit",
+			rawSettings: []byte(`{"minRequest": "1m", "maxRequest": "2m", "minLimit": "3m", "maxLimit": "4m"}`),
+		},
+		{
+			name:        "valid: equal values in constraint chain",
+			rawSettings: []byte(`{"minRequest": "2m", "maxRequest": "2m", "minLimit": "2m", "maxLimit": "2m", "defaultLimit": "2m", "defaultRequest": "2m"}`),
+		},
+		{
+			name:        "valid: maxRequest equals minLimit",
+			rawSettings: []byte(`{"minRequest": "1m", "maxRequest": "3m", "minLimit": "3m", "maxLimit": "4m", "defaultLimit": "3m", "defaultRequest": "3m"}`),
+		},
+		{
+			name:        "invalid: minRequest > minLimit",
+			rawSettings: []byte(`{"minRequest": "4m", "minLimit": "3m", "maxLimit": "5m"}`),
+			err:         errors.New("min request: 4m cannot be greater than min limit: 3m"),
+		},
+		{
+			name:        "invalid: maxRequest > minLimit",
+			rawSettings: []byte(`{"minRequest": "1m", "maxRequest": "4m", "minLimit": "3m", "maxLimit": "5m"}`),
+			err:         errors.New("max request: 4m cannot be greater than min limit: 3m"),
+		},
+		{
+			name:        "invalid: minLimit > maxLimit",
+			rawSettings: []byte(`{"minRequest": "1m", "maxRequest": "2m", "minLimit": "5m", "maxLimit": "4m"}`),
+			err:         errors.New("min limit: 5m cannot be greater than max limit: 4m"),
+		},
+		{
+			name:        "invalid: minRequest > minLimit",
+			rawSettings: []byte(`{"minRequest": "4m", "minLimit": "3m", "maxLimit": "6m"}`),
+			err:         errors.New("min request: 4m cannot be greater than min limit: 3m"),
+		},
+		{
+			name:        "invalid: maxRequest > maxLimit",
+			rawSettings: []byte(`{"maxRequest": "5m", "maxLimit": "4m"}`),
+			err:         errors.New("max request: 5m cannot be greater than max limit: 4m"),
+		},
+		{
+			name:        "valid: minRequest and maxRequest only",
+			rawSettings: []byte(`{"minRequest": "1m", "maxRequest": "2m"}`),
+		},
+		{
+			name:        "valid: minLimit and maxLimit only",
+			rawSettings: []byte(`{"minLimit": "3m", "maxLimit": "4m"}`),
+		},
+		{
+			name:        "valid: maxRequest and minLimit together",
+			rawSettings: []byte(`{"maxRequest": "2m", "minLimit": "3m"}`),
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			settings := &ResourceConfiguration{}
 			if err := json.Unmarshal(test.rawSettings, settings); err != nil {
-				if len(test.errorMessage) == 0 {
-					t.Fatalf("Unexpected error: %+v", err)
-				}
-				if !strings.Contains(err.Error(), test.errorMessage) {
-					t.Fatalf("invalid error message. Expected the string '%s' in the error. Got '%s'", test.errorMessage, err.Error())
-				}
+				require.Error(t, err)
+				require.Contains(t, err.Error(), test.err.Error())
 				return
 			}
-			err := settings.valid()
-			if len(test.errorMessage) == 0 && err != nil {
-				t.Fatalf("unexpected validation error: %+v", err)
-			}
-			if len(test.errorMessage) > 0 {
-				if err == nil {
-					t.Fatalf("expected error message with string '%s'. But no error has been returned", test.errorMessage)
-				}
-				if !strings.Contains(err.Error(), test.errorMessage) {
-					t.Errorf("invalid error message. Expected the string '%s' in the error. Got '%s'", test.errorMessage, err.Error())
-				}
-			}
+			require.Equal(t, test.err, settings.valid())
 		})
 	}
 }
@@ -89,51 +210,106 @@ func TestParsingSettings(t *testing.T) {
 		name         string
 		rawSettings  []byte
 		errorMessage string
+		err          error
 	}{
-		{"invalid settings", []byte(`{}`), "no settings provided. At least one resource limit or request must be verified"},
-		{"valid settings", []byte(`{"cpu": {"maxLimit": "1m", "defaultRequest": "1m", "defaultLimit": "1m"}, "memory":{ "defaultLimit": "200M", "defaultRequest": "100M", "maxLimit": "500M"}, "ignoreImages": ["image:latest"]}`), ""},
-		{"valid settings with cpu field only", []byte(`{"cpu": {"maxLimit": "1m", "defaultRequest": "1m", "defaultLimit": "1m"}}`), ""},
-		{"valid settings with memory fields only", []byte(`{"memory":{ "defaultLimit": "200M", "defaultRequest": "100M", "maxLimit": "500M"}}`), ""},
-		{"no suffix", []byte(`{"cpu": {"maxLimit": "3", "defaultLimit": "2", "defaultRequest": "1"}, "memory": {"maxLimit": "3", "defaultLimit": "2", "defaultRequest": "1"}, "ignoreImages": []}`), ""},
-		{"invalid cpu settings", []byte(`{"cpu": {"maxLimit": "2m", "defaultRequest": "3m", "defaultLimit": "4m"}, "memory":{ "defaultLimit": "2G", "defaultRequest": "1G", "maxLimit": "3G"}, "ignoreImages": ["image:latest"]}`), "default values cannot be greater than the max limit"},
-		{"invalid memory settings", []byte(`{"cpu": {"maxLimit": "2m", "defaultRequest": "1m", "defaultLimit": "1m"}, "memory":{ "defaultLimit": "2G", "defaultRequest": "3G", "maxLimit": "1G"}, "ignoreImages": ["image:latest"]}`), "default values cannot be greater than the max limit"},
-		{"invalid cpu request", []byte(`{"cpu": {"minRequest": "2m", "maxLimit":	"4m", "defaultRequest": "1m", "defaultLimit": "3m"}}`), "default values cannot be smaller than the min request"},
-		{"valid settings with empty memory settings", []byte(`{"cpu": {"maxLimit": "1m", "defaultRequest": "1m", "defaultLimit": "1m"}, "memory":{"ignoreValues": false}, "ignoreImages": ["image:latest"]}`), ""},
-		{"valid settings with empty cpu settings", []byte(`{"cpu": {"ignoreValues": false}, "memory":{ "defaultLimit": "200M", "defaultRequest": "100M", "maxLimit": "500M", "ignoreValues": false}, "ignoreImages": ["image:latest"]}`), ""},
-		{"invalid settings with empty cpu and memory settings", []byte(`{"cpu": {"ignoreValues": false}, "memory":{"ignoreValues": false}, "ignoreImages": ["image:latest"]}`), "invalid cpu settings\nall the quantities must be defined\ninvalid memory settings\nall the quantities must be defined"},
-		{"invalid cpu minLimit", []byte(`{"cpu": {"minLimit": "3m", "defaultLimit": "2m", "defaultRequest": "1m"}}`), "default values cannot be smaller than the min limit"},
-		{"invalid cpu maxRequest", []byte(`{"cpu": {"maxRequest": "1m", "defaultLimit": "2m", "defaultRequest": "3m"}}`), "default values cannot be greater than the max request"},
-		{"invalid memory minLimit", []byte(`{"memory": {"minLimit": "3G", "defaultLimit": "2G", "defaultRequest": "1G"}}`), "default values cannot be smaller than the min limit"},
-		{"invalid memory maxRequest", []byte(`{"memory": {"maxRequest": "1G", "defaultLimit": "2G", "defaultRequest": "3G"}}`), "default values cannot be greater than the max request"},
-		{"valid settings with minLimit and maxRequest", []byte(`{"cpu": {"minLimit": "1m", "maxLimit": "4m", "maxRequest": "3m", "defaultLimit": "2m", "defaultRequest": "2m"}, "memory": {"minLimit": "1G", "maxLimit": "4G", "maxRequest": "3G", "defaultLimit": "2G", "defaultRequest": "2G"}}`), ""},
-		{"invalid cpu maxRequest greater than maxLimit", []byte(`{"cpu": {"maxRequest": "5m", "maxLimit": "4m", "defaultLimit": "3m", "defaultRequest": "2m"}}`), "max request cannot be greater than the max limit"},
-		{"invalid cpu minLimit greater than minRequest", []byte(`{"cpu": {"minLimit": "3m", "minRequest": "2m", "defaultLimit": "4m", "defaultRequest": "3m"}}`), "min limit cannot be greater than the min request"},
-		{"invalid memory maxRequest greater than maxLimit", []byte(`{"memory": {"maxRequest": "5G", "maxLimit": "4G", "defaultLimit": "3G", "defaultRequest": "2G"}}`), "max request cannot be greater than the max limit"},
-		{"invalid memory minLimit greater than minRequest", []byte(`{"memory": {"minLimit": "3G", "minRequest": "2G", "defaultLimit": "4G", "defaultRequest": "3G"}}`), "min limit cannot be greater than the min request"},
+		{
+			name:        "invalid settings",
+			rawSettings: []byte(`{}`),
+			err:         errors.New("no settings provided. At least one resource limit or request must be verified"),
+		},
+		{
+			name:        "valid settings",
+			rawSettings: []byte(`{"cpu": {"maxLimit": "1m", "defaultRequest": "1m", "defaultLimit": "1m"}, "memory":{ "defaultLimit": "200M", "defaultRequest": "100M", "maxLimit": "500M"}, "ignoreImages": ["image:latest"]}`),
+		},
+		{
+			name:        "valid settings with cpu field only",
+			rawSettings: []byte(`{"cpu": {"maxLimit": "1m", "defaultRequest": "1m", "defaultLimit": "1m"}}`),
+		},
+		{
+			name:        "valid settings with memory fields only",
+			rawSettings: []byte(`{"memory":{ "defaultLimit": "200M", "defaultRequest": "100M", "maxLimit": "500M"}}`),
+		},
+		{
+			name:        "no suffix",
+			rawSettings: []byte(`{"cpu": {"maxLimit": "3", "defaultLimit": "2", "defaultRequest": "1"}, "memory": {"maxLimit": "3", "defaultLimit": "2", "defaultRequest": "1"}, "ignoreImages": []}`),
+		},
+		{
+			name:        "invalid cpu settings",
+			rawSettings: []byte(`{"cpu": {"maxLimit": "2m", "defaultRequest": "3m", "defaultLimit": "4m"}, "memory":{ "defaultLimit": "2G", "defaultRequest": "1G", "maxLimit": "3G"}, "ignoreImages": ["image:latest"]}`),
+			err:         errors.New("default limit: 4m cannot be greater than max limit: 2m"),
+		},
+		{
+			name:        "invalid memory settings",
+			rawSettings: []byte(`{"cpu": {"maxLimit": "2m", "defaultRequest": "1m", "defaultLimit": "1m"}, "memory":{ "defaultLimit": "2G", "defaultRequest": "3G", "maxLimit": "1G"}, "ignoreImages": ["image:latest"]}`),
+			err:         errors.New("default limit: 2G cannot be greater than max limit: 1G"),
+		},
+		{
+			name:        "invalid cpu request",
+			rawSettings: []byte(`{"cpu": {"minRequest": "2m", "maxLimit":	"4m", "defaultRequest": "1m", "defaultLimit": "3m"}}`),
+			err:         errors.New("min request: 2m cannot be greater than default request: 1m"),
+		},
+		{
+			name:        "valid settings with empty memory settings",
+			rawSettings: []byte(`{"cpu": {"maxLimit": "1m", "defaultRequest": "1m", "defaultLimit": "1m"}, "memory":{"ignoreValues": false}, "ignoreImages": ["image:latest"]}`),
+		},
+		{
+			name:        "valid settings with empty cpu settings",
+			rawSettings: []byte(`{"cpu": {"ignoreValues": false}, "memory":{ "defaultLimit": "200M", "defaultRequest": "100M", "maxLimit": "500M", "ignoreValues": false}, "ignoreImages": ["image:latest"]}`),
+		},
+		{
+			name:        "invalid settings with empty cpu and memory settings",
+			rawSettings: []byte(`{"cpu": {"ignoreValues": false}, "memory":{"ignoreValues": false}, "ignoreImages": ["image:latest"]}`),
+			err:         errors.New("invalid cpu settings\nall the quantities must be defined\ninvalid memory settings\nall the quantities must be defined"),
+		},
+		{
+			name:        "invalid cpu minLimit",
+			rawSettings: []byte(`{"cpu": {"minLimit": "3m", "defaultLimit": "2m", "defaultRequest": "1m"}}`),
+			err:         errors.New("min limit: 3m cannot be greater than default limit: 2m"),
+		},
+		{
+			name:        "invalid cpu maxRequest",
+			rawSettings: []byte(`{"cpu": {"maxRequest": "1m", "defaultLimit": "2m", "defaultRequest": "3m"}}`),
+			err:         errors.New("default request: 3m cannot be greater than default limit: 2m"),
+		},
+		{
+			name:        "invalid memory minLimit",
+			rawSettings: []byte(`{"memory": {"minLimit": "3G", "defaultLimit": "2G", "defaultRequest": "1G"}}`),
+			err:         errors.New("min limit: 3G cannot be greater than default limit: 2G"),
+		},
+		{
+			name:        "invalid memory maxRequest",
+			rawSettings: []byte(`{"memory": {"maxRequest": "1G", "defaultLimit": "2G", "defaultRequest": "3G"}}`),
+			err:         errors.New("default request: 3G cannot be greater than default limit: 2G"),
+		},
+		{
+			name:        "valid settings with minLimit and maxRequest",
+			rawSettings: []byte(`{"cpu": {"minLimit": "3m", "maxLimit": "4m", "maxRequest": "2m", "defaultLimit": "3m", "defaultRequest": "2m"}, "memory": {"minLimit": "3G", "maxLimit": "4G", "maxRequest": "2G", "defaultLimit": "3G", "defaultRequest": "2G"}}`),
+		},
+		{
+			name:        "invalid cpu maxRequest greater than maxLimit",
+			rawSettings: []byte(`{"cpu": {"maxRequest": "5m", "maxLimit": "4m", "defaultLimit": "3m", "defaultRequest": "2m"}}`),
+			err:         errors.New("max request: 5m cannot be greater than max limit: 4m"),
+		},
+		{
+			name:        "invalid cpu minRequest greater than minLimit",
+			rawSettings: []byte(`{"cpu": {"minLimit": "2m", "minRequest": "3m", "defaultLimit": "4m", "defaultRequest": "1m"}}`),
+			err:         errors.New("min request: 3m cannot be greater than min limit: 2m"),
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			settings := &Settings{}
 			if err := json.Unmarshal(test.rawSettings, settings); err != nil {
-				if len(test.errorMessage) == 0 {
-					t.Fatalf("Unexpected error: %+v", err)
-				}
-				if !strings.Contains(err.Error(), test.errorMessage) {
-					t.Fatalf("invalid error message. Expected the string '%s' in the error. Got '%s'", test.errorMessage, err.Error())
-				}
+				require.Error(t, test.err)
+				require.Contains(t, err.Error(), test.err.Error())
 				return
 			}
-			err := settings.Valid()
-			if len(test.errorMessage) == 0 && err != nil {
-				t.Fatalf("unexpected validation error: %+v", err)
-			}
-			if len(test.errorMessage) > 0 {
-				if err == nil {
-					t.Fatalf("expected error message with string '%s'. But no error has been returned", test.errorMessage)
-				}
-				if !strings.Contains(err.Error(), test.errorMessage) {
-					t.Errorf("invalid error message. Expected the string '%s' in the error. Got '%s'", test.errorMessage, err.Error())
-				}
+			validationErr := settings.Valid()
+			if test.err == nil {
+				require.NoError(t, validationErr)
+			} else {
+				require.Error(t, validationErr)
+				require.Contains(t, validationErr.Error(), test.err.Error())
 			}
 		})
 	}

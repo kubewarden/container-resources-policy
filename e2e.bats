@@ -1,5 +1,6 @@
 #!/usr/bin/env bats
 
+
 @test "fail with empty settings" {
   run kwctl run annotated-policy.wasm -r test_data/pod_within_range.json --settings-json '{}'
 
@@ -262,7 +263,174 @@
   run kwctl run annotated-policy.wasm -r test_data/deployment_with_requests_no_limit_resources_admission_request.json \
     --settings-json '{"cpu": {"minLimit": 0.5, "defaultLimit": 0.5, "defaultRequest": 0.5, "ignoreValues":false}, "memory" : {"minLimit": "500Mi", "defaultLimit": "500Mi", "defaultRequest": "500Mi", "ignoreValues":false}, "ignoreImages": ["image:latest"]}'
   [ "$status" -eq 0 ]
-  echo $output
+
   [ $(expr "$output" : '.*allowed":false') -ne 0 ]
   [ $(expr "$output" : ".*memory request.*doesn't reach the min allowed value.*") -ne 0 ]
+}
+
+@test "reject: cpu limit (1) is less than default request (2) after mutation" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
+    --settings-json '{"cpu": {"maxLimit": 2, "defaultLimit": 2, "defaultRequest": 2, "ignoreValues":false}}'
+  [ "$status" -eq 0 ]
+
+  [ $(expr "$output" : '.*allowed":false') -ne 0 ]
+  [ $(expr "$output" : ".*cpu limit.*is less than the requested.*value.*") -ne 0 ]
+}
+
+@test "accept: cpu limit (1) is within maxLimit (2)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
+    --settings-json '{"cpu": {"maxLimit": 2}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+}
+
+@test "accept: cpu limit (1) meets minLimit (1)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
+    --settings-json '{"cpu": {"minLimit": 1}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+}
+
+@test "reject: cpu limit (1) below minLimit (2)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
+    --settings-json '{"cpu": {"minLimit": 2}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":false') -ne 0 ]
+  [ $(expr "$output" : ".*cpu limit.*doesn't reach the min allowed value.*") -ne 0 ]
+}
+
+@test "reject: cpu limit (1) exceeds maxLimit (0.5)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
+    --settings-json '{"cpu": {"maxLimit": "500m"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":false') -ne 0 ]
+  [ $(expr "$output" : ".*cpu limit.*exceeds the max allowed value.*") -ne 0 ]
+}
+
+@test "accept: pod has cpu limit, defaultLimit mutate but still satisfied the rule" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
+    --settings-json '{"cpu": {"defaultLimit": 2}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+}
+
+@test "accept: defaultRequest (0.8) meets minRequest (0.5) and limit (1)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
+    --settings-json '{"cpu": {"minRequest": "500m", "defaultRequest": "800m"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+}
+
+@test "accept: defaultRequest (0.5) within maxRequest (0.8) and below limit (1)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
+    --settings-json '{"cpu": {"maxRequest": "800m", "defaultRequest": "500m"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+}
+
+@test "accept: defaultRequest (0.3) with minLimit (0.5), pod limit (1) satisfies constraints" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
+    --settings-json '{"cpu": {"minLimit": "500m", "defaultRequest": "300m"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+}
+
+@test "accept: complete constraint chain minRequest(0.2) <= defaultRequest(0.5) <= maxRequest(0.6) <= minLimit(0.8) <= limit(1) <= maxLimit(1.5)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
+    --settings-json '{"cpu": {"minRequest": "200m", "maxRequest": "600m", "minLimit": "800m", "maxLimit": "1500m", "defaultRequest": "500m"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+}
+
+@test "accept: pod cpu request (1) meets minRequest (0.5)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_requests_no_limit_resources_admission_request.json \
+    --settings-json '{"cpu": {"minRequest": "500m"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+}
+
+@test "reject: pod cpu request (1) below minRequest (1.5)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_requests_no_limit_resources_admission_request.json \
+    --settings-json '{"cpu": {"minRequest": "1500m"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":false') -ne 0 ]
+  [ $(expr "$output" : ".*cpu request.*doesn't reach the min allowed value.*") -ne 0 ]
+}
+
+@test "accept: pod cpu request (1) within maxRequest (1.5)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_requests_no_limit_resources_admission_request.json \
+    --settings-json '{"cpu": {"maxRequest": "1500m"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+}
+
+@test "reject: pod cpu request (1) exceeds maxRequest (0.5)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_requests_no_limit_resources_admission_request.json \
+    --settings-json '{"cpu": {"maxRequest": "500m"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":false') -ne 0 ]
+  [ $(expr "$output" : ".*cpu request.*exceeds the max allowed value.*") -ne 0 ]
+}
+
+@test "accept: pod cpu request (1) meets minLimit (0.8) constraint" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_requests_no_limit_resources_admission_request.json \
+    --settings-json '{"cpu": {"minLimit": "800m"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+}
+
+@test "reject: pod cpu limit (1) below minLimit (1.2)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_requests_no_limit_resources_admission_request.json \
+    --settings-json '{"cpu": {"minLimit": "1200m"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":false') -ne 0 ]
+  [ $(expr "$output" : ".*cpu limit.*doesn't reach the min allowed value.*") -ne 0 ]
+}
+
+@test "accept: pod without resources gets defaultLimit (1) and defaultRequest (0.5)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_without_resources_admission_request.json \
+    --settings-json '{"cpu": {"defaultLimit": 1, "defaultRequest": "500m"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+}
+
+@test "accept: memory defaultRequest (600Mi) within minRequest (500Mi) and maxRequest (800Mi)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
+    --settings-json '{"memory": {"minRequest": "500Mi", "maxRequest": "800Mi", "defaultRequest": "600Mi"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
+}
+
+@test "reject: memory limit (1G) below minLimit (2G)" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
+    --settings-json '{"memory": {"minLimit": "2G"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":false') -ne 0 ]
+  [ $(expr "$output" : ".*memory limit.*doesn't reach the min allowed value.*") -ne 0 ]
+}
+
+@test "accept: combined cpu and memory with default requests" {
+  run kwctl run annotated-policy.wasm -r test_data/deployment_with_limits_admission_request.json \
+    --settings-json '{"cpu": {"defaultRequest": "500m"}, "memory": {"defaultRequest": "500Mi"}}'
+
+  [ "$status" -eq 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
 }
