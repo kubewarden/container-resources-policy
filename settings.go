@@ -40,14 +40,6 @@ func (s *Settings) shouldIgnoreMemoryValues() bool {
 	return s.Memory != nil && (s.Memory.IgnoreValues || (!s.Memory.IgnoreValues && s.Memory.allValuesAreZero()))
 }
 
-// validateOrder validates ordering: a <= b
-func validateOrder(a, b resource.Quantity, aName, bName string) error {
-	if !a.IsZero() && !b.IsZero() && a.Cmp(b) > 0 {
-		return fmt.Errorf("%s: %s cannot be greater than %s: %s", aName, a.String(), bName, b.String())
-	}
-	return nil
-}
-
 func (r *ResourceConfiguration) valid() error {
 	if r.allValuesAreZero() && !r.IgnoreValues {
 		return AllValuesAreZeroError{}
@@ -56,60 +48,77 @@ func (r *ResourceConfiguration) valid() error {
 	// Core chain: minRequest <= defaultRequest <= maxRequest <= minLimit <= defaultLimit <= maxLimit
 	// This enforces the constraint: limit >= request for all combinations
 	// The chain ensures that any limit is always >= any request
+
 	// Validate max limit relationships
-	if err := validateOrder(r.DefaultLimit, r.MaxLimit, "default limit", "max limit"); err != nil {
-		return err
+	// defaultLimit <= maxLimit
+	if !r.DefaultLimit.IsZero() && !r.MaxLimit.IsZero() && r.DefaultLimit.Cmp(r.MaxLimit) > 0 {
+		return fmt.Errorf("default limit: %s cannot be greater than max limit: %s", r.DefaultLimit.String(), r.MaxLimit.String())
 	}
-	if err := validateOrder(r.MinLimit, r.MaxLimit, "min limit", "max limit"); err != nil {
-		return err
+	// minLimit <= maxLimit
+	if !r.MinLimit.IsZero() && !r.MaxLimit.IsZero() && r.MinLimit.Cmp(r.MaxLimit) > 0 {
+		return fmt.Errorf("min limit: %s cannot be greater than max limit: %s", r.MinLimit.String(), r.MaxLimit.String())
 	}
-	if err := validateOrder(r.MaxRequest, r.MaxLimit, "max request", "max limit"); err != nil {
-		return err
+	// maxRequest <= maxLimit
+	if !r.MaxRequest.IsZero() && !r.MaxLimit.IsZero() && r.MaxRequest.Cmp(r.MaxLimit) > 0 {
+		return fmt.Errorf("max request: %s cannot be greater than max limit: %s", r.MaxRequest.String(), r.MaxLimit.String())
 	}
-	if err := validateOrder(r.DefaultRequest, r.MaxLimit, "default request", "max limit"); err != nil {
-		return err
+	// defaultRequest <= maxLimit
+	if !r.DefaultRequest.IsZero() && !r.MaxLimit.IsZero() && r.DefaultRequest.Cmp(r.MaxLimit) > 0 {
+		return fmt.Errorf("default request: %s cannot be greater than max limit: %s", r.DefaultRequest.String(), r.MaxLimit.String())
 	}
-	if err := validateOrder(r.MinRequest, r.MaxLimit, "min request", "max limit"); err != nil {
-		return err
+	// minRequest <= maxLimit
+	if !r.MinRequest.IsZero() && !r.MaxLimit.IsZero() && r.MinRequest.Cmp(r.MaxLimit) > 0 {
+		return fmt.Errorf("min request: %s cannot be greater than max limit: %s", r.MinRequest.String(), r.MaxLimit.String())
 	}
 
 	// Validate default limit relationships
-	if err := validateOrder(r.MinLimit, r.DefaultLimit, "min limit", "default limit"); err != nil {
-		return err
+	// minLimit <= defaultLimit
+	if !r.MinLimit.IsZero() && !r.DefaultLimit.IsZero() && r.MinLimit.Cmp(r.DefaultLimit) > 0 {
+		return fmt.Errorf("min limit: %s cannot be greater than default limit: %s", r.MinLimit.String(), r.DefaultLimit.String())
 	}
-	if err := validateOrder(r.MaxRequest, r.DefaultLimit, "max request", "default limit"); err != nil {
-		return err
+	// maxRequest <= defaultLimit
+	if !r.MaxRequest.IsZero() && !r.DefaultLimit.IsZero() && r.MaxRequest.Cmp(r.DefaultLimit) > 0 {
+		return fmt.Errorf("max request: %s cannot be greater than default limit: %s", r.MaxRequest.String(), r.DefaultLimit.String())
 	}
-	if err := validateOrder(r.DefaultRequest, r.DefaultLimit, "default request", "default limit"); err != nil {
-		return err
+	// defaultRequest <= defaultLimit
+	if !r.DefaultRequest.IsZero() && !r.DefaultLimit.IsZero() && r.DefaultRequest.Cmp(r.DefaultLimit) > 0 {
+		return fmt.Errorf("default request: %s cannot be greater than default limit: %s", r.DefaultRequest.String(), r.DefaultLimit.String())
 	}
-	if err := validateOrder(r.MinRequest, r.DefaultLimit, "min request", "default limit"); err != nil {
-		return err
+	// minRequest <= defaultLimit
+	if !r.MinRequest.IsZero() && !r.DefaultLimit.IsZero() && r.MinRequest.Cmp(r.DefaultLimit) > 0 {
+		return fmt.Errorf("min request: %s cannot be greater than default limit: %s", r.MinRequest.String(), r.DefaultLimit.String())
 	}
 
 	// Validate min limit relationships
-	if err := validateOrder(r.MaxRequest, r.MinLimit, "max request", "min limit"); err != nil {
-		return err
+	// maxRequest <= minLimit
+	if !r.MaxRequest.IsZero() && !r.MinLimit.IsZero() && r.MaxRequest.Cmp(r.MinLimit) > 0 {
+		return fmt.Errorf("max request: %s cannot be greater than min limit: %s", r.MaxRequest.String(), r.MinLimit.String())
 	}
-	if err := validateOrder(r.DefaultRequest, r.MinLimit, "default request", "min limit"); err != nil {
-		return err
+	// defaultRequest <= minLimit
+	if !r.DefaultRequest.IsZero() && !r.MinLimit.IsZero() && r.DefaultRequest.Cmp(r.MinLimit) > 0 {
+		return fmt.Errorf("default request: %s cannot be greater than min limit: %s", r.DefaultRequest.String(), r.MinLimit.String())
 	}
-	if err := validateOrder(r.MinRequest, r.MinLimit, "min request", "min limit"); err != nil {
-		return err
+	// minRequest <= minLimit
+	if !r.MinRequest.IsZero() && !r.MinLimit.IsZero() && r.MinRequest.Cmp(r.MinLimit) > 0 {
+		return fmt.Errorf("min request: %s cannot be greater than min limit: %s", r.MinRequest.String(), r.MinLimit.String())
 	}
 
 	// Validate max request relationships
-	if err := validateOrder(r.DefaultRequest, r.MaxRequest, "default request", "max request"); err != nil {
-		return err
+	// defaultRequest <= maxRequest
+	if !r.DefaultRequest.IsZero() && !r.MaxRequest.IsZero() && r.DefaultRequest.Cmp(r.MaxRequest) > 0 {
+		return fmt.Errorf("default request: %s cannot be greater than max request: %s", r.DefaultRequest.String(), r.MaxRequest.String())
 	}
-	if err := validateOrder(r.MinRequest, r.MaxRequest, "min request", "max request"); err != nil {
-		return err
+	// minRequest <= maxRequest
+	if !r.MinRequest.IsZero() && !r.MaxRequest.IsZero() && r.MinRequest.Cmp(r.MaxRequest) > 0 {
+		return fmt.Errorf("min request: %s cannot be greater than max request: %s", r.MinRequest.String(), r.MaxRequest.String())
 	}
 
 	// Validate default request relationships
-	if err := validateOrder(r.MinRequest, r.DefaultRequest, "min request", "default request"); err != nil {
-		return err
+	// minRequest <= defaultRequest
+	if !r.MinRequest.IsZero() && !r.DefaultRequest.IsZero() && r.MinRequest.Cmp(r.DefaultRequest) > 0 {
+		return fmt.Errorf("min request: %s cannot be greater than default request: %s", r.MinRequest.String(), r.DefaultRequest.String())
 	}
+
 	return nil
 }
 
