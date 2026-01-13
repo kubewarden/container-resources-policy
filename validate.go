@@ -208,20 +208,6 @@ func validateContainerResourceLimitsAndRequests(container *corev1.Container, res
 				return false, err
 			}
 		}
-
-		// This ensures consistency: if limit must be >= minLimit, then request (which must be <= limit) should also be >= minLimit
-		if !resourceConfig.MinLimit.IsZero() {
-			if err := validateResourceMin(container.Resources.Requests, resourceName, resourceConfig.MinLimit, "request"); err != nil {
-				return false, err
-			}
-		}
-
-		// This ensures consistency: if request must be <= maxRequest, then limit (which must be >= request) should also be <= maxRequest
-		if !resourceConfig.MaxLimit.IsZero() {
-			if err := validateResourceMax(container.Resources.Limits, resourceName, resourceConfig.MaxLimit, "limit"); err != nil {
-				return false, err
-			}
-		}
 	}
 
 	return mutated, nil

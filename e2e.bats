@@ -264,8 +264,7 @@
     --settings-json '{"cpu": {"minLimit": 0.5, "defaultLimit": 0.5, "defaultRequest": 0.5, "ignoreValues":false}, "memory" : {"minLimit": "500Mi", "defaultLimit": "500Mi", "defaultRequest": "500Mi", "ignoreValues":false}, "ignoreImages": ["image:latest"]}'
   [ "$status" -eq 0 ]
 
-  [ $(expr "$output" : '.*allowed":false') -ne 0 ]
-  [ $(expr "$output" : ".*memory request.*doesn't reach the min allowed value.*") -ne 0 ]
+  [ $(expr "$output" : '.*allowed":true') -ne 0 ]
 }
 
 @test "reject: cpu limit (1) is less than default request (2) after mutation" {

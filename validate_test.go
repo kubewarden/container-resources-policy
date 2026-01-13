@@ -20,6 +20,9 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 	twoGi := resource.MustParse("2Gi")
 	twoCoreCpuQuantity := apimachinery_pkg_api_resource.Quantity("2")
 	twoGiMemoryQuantity := apimachinery_pkg_api_resource.Quantity("2Gi")
+	fourCore := apimachinery_pkg_api_resource.Quantity("4")
+	tenCore := apimachinery_pkg_api_resource.Quantity("10")
+
 	tests := []struct {
 		name                        string
 		container                   corev1.Container
@@ -654,6 +657,35 @@ func TestContainerIsRequiredToHaveLimits(t *testing.T) {
 			},
 			false,
 			"cpu limit '1' doesn't reach the min allowed value '2'",
+		},
+		{
+			"request below minLimit but within maxRequest should be accepted",
+			corev1.Container{
+				Resources: &corev1.ResourceRequirements{
+					Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu": &fourCore,
+					},
+					Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+						"cpu": &tenCore,
+					},
+				},
+			},
+			Settings{
+				Cpu: &ResourceConfiguration{
+					MaxRequest: resource.MustParse("6"),
+					MinLimit:   resource.MustParse("6"),
+				},
+			},
+			&corev1.ResourceRequirements{
+				Requests: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu": &fourCore,
+				},
+				Limits: map[string]*apimachinery_pkg_api_resource.Quantity{
+					"cpu": &tenCore,
+				},
+			},
+			false,
+			"",
 		},
 	}
 
